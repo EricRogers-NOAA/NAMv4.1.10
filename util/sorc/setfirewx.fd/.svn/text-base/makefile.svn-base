@@ -1,0 +1,5 @@
+setfirewx:
+	ifort -o setfirewx -free -real-size 32 setfirewx.f
+clean:
+	rm -f setfirewx
+

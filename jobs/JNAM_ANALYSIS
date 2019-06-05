@@ -1,0 +1,50 @@
+#!/bin/bash
+
+########################################
+# NAM Preliminary data setup step
+########################################
+
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc}_${tmmark}_${envir}
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+# Setup machine-specific MPI/OMP settings
+# that are specific to this job
+  # Got these from the production ecflow jobs.
+  # For best portability, this really needs to be in one spot,
+  # i.e. - the J-jobs.   
+  # Got these from the FV3GFS env.
+  export MPI_LABELIO=YES
+  export MP_STDOUTMODE="ORDERED"
+  export KMP_STACKSIZE=2048M
+  export KMP_AFFINITY=scatter
+
+#reset OMP_NUM_THREADS to 7 (set to 1 when loading EnvVars module)
+export OMP_NUM_THREADS=7
+
+########################################################
+# Execute the script.
+${HOMEnam}/scripts/exnam_gsireg.sh.ecf
+jerr=$?
+########################################################
+
+echo "parent anl done" > $GESDIR/nam.t${cyc}z.${RUNTYPE}.parentanl.done.${tmmark} 
+
+cat $pgmout
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+##############################
+# Remove the Temporary working directory
+##############################
+cd $DATAROOT
+if [ ${KEEPDATA:-YES} = NO ] ; then rm -rf $DATA ; fi
+
+exit $jerr

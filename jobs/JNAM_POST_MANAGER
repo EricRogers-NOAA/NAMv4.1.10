@@ -1,0 +1,24 @@
+#!/bin/bash
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc}_${tmmark}_${envir}
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+########################################################
+# Execute the script.
+${HOMEnam}/scripts/exnam_pmgr.sh.ecf
+jerr=$?
+########################################################
+
+cat $pgmout
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+cd ${DATAROOT}
+exit $jerr

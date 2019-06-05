@@ -1,0 +1,78 @@
+#!/bin/bash
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver:?}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc:?}_${tmmark:?}_prelim_reloc_${envir:?}
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+  # Got these from the FV3GFS env.
+  export MPI_LABELIO=YES
+  export MP_STDOUTMODE="ORDERED"
+  export KMP_STACKSIZE=2048M
+  export KMP_AFFINITY=scatter
+
+# Determine number of storms
+
+if [ $tmmark = tm06 ] ; then
+  DATEANL=`$NDATE -6 ${PDY}${cyc}`
+  PDYm6=`echo $DATEANL | cut -c 1-8`
+  cycm6=`echo $DATEANL | cut -c 9-10`
+  SDATE=`$NDATE -6 ${PDY}${cyc}`
+  echo $SDATE > stormdate
+  yystorm=`cut -c 1-4 stormdate`
+  export synfile=$COMINnhc/storm-data/ncep/tcvitals
+fi
+if [ $tmmark = tm00 ] ; then
+  DATEANL=${PDY}${cyc}
+  SDATE=${PDY}${cyc} 
+  echo $SDATE > stormdate
+  yystorm=`cut -c 1-4 stormdate`
+  export synfile=$COMINnhc/storm-data/ncep/tcvitals
+fi
+
+echo $SDATE > stormdate
+yystorm=`cut -c 1-4 stormdate`
+
+$USHnam/nam_testTCvital_new.sh $SDATE
+
+if [ -s ${DATA}/numb_tmpvit ] ; then
+  cp ${DATA}/numb_tmpvit $COMOUT/nam.t${cyc}z.numb_tmpvit.${tmmark}
+  export numbstm=` cat ${DATA}/numb_tmpvit `
+  echo "export numbstm=` cat ${DATA}/numb_tmpvit `" > $GESDIR/nam.t${cyc}z.envir.numbstm.${tmmark}.sh
+else
+  export numbstm=0
+  echo "export numbstm=0" > $GESDIR/nam.t${cyc}z.envir.numbstm.${tmmark}.sh
+fi
+
+if [ $numbstm -ge 1 ] ; then
+########################################################
+# Execute the scripts
+    ${HOMEnam}/scripts/exnam_post_track.sh.ecf
+    jerr=$?
+    ${HOMEnam}/scripts/exnam_trkr_nam_reloc.sh.ecf
+    jerr=$?
+########################################################
+else
+    msg="No tropical storms"
+    postmsg "$jlogfile" "$msg"
+fi
+
+cat $pgmout
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+##############################
+# Remove the Temporary working directory
+##############################
+
+if [ $numbstm -eq 0 ] ; then
+    cd $DATAROOT
+    if [ ${KEEPDATA:-YES} = NO ] ; then rm -rf $DATA ; fi
+fi
+
+exit $jerr

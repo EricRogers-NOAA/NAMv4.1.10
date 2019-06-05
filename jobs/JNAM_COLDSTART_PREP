@@ -1,0 +1,51 @@
+#!/bin/bash
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc}_main_${envir}
+
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+  # Got these from the FV3GFS env.
+  export MPI_LABELIO=YES
+  export MP_STDOUTMODE="ORDERED"
+  export KMP_STACKSIZE=2048M
+  export KMP_AFFINITY=scatter
+
+#
+# Get needed variables from exnam_prelim.sh.sms
+#
+. $GESDIR/nam.t${cyc}z.envir.sh
+
+# For coldstart of parent domain at start of catchup cycle
+
+if [ $tmmark = tm06 ] ; then
+########################################################
+# Execute the script.
+${HOMEnam}/scripts/exnam_coldstart_prep.sh.ecf
+jerr=$?
+########################################################
+fi
+
+# For coldstart of parent at tm00 off GDAS if catchup cycle did not finish or run
+
+if [ $tmmark = tm00 ] ; then
+  if [ $GUESStm00 = GDAS ] ; then
+########################################################
+# Execute the script.
+${HOMEnam}/scripts/exnam_coldstart_prep_tm00.sh.ecf
+jerr=$?
+########################################################
+  fi
+fi
+
+cat $pgmout
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+exit $jerr

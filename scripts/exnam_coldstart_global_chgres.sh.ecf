@@ -1,0 +1,176 @@
+#!/bin/ksh
+################################################################################
+####  UNIX Script Documentation Block
+#                      .                                             .
+# Script name:         exnam_coldstart_global_chgres.sh.ecf
+# Script description:  Runs global_chgres to convert GDAS first guess nemsio
+#                      file back to spectral format 
+#
+# Author:        Eric Rogers       Org: NP22         Date: 2004-07-02
+#
+# Script history log:
+# 2016-12-23  Eric Rogers
+# 2018-08-27  Eric Rogers changes for FV3GFS
+
+set -x
+
+msg="JOB $job FOR NMMB HAS BEGUN"
+postmsg "$jlogfile" "$msg"
+
+#
+# Get needed variables from exndas_prelim.sh.sms
+#
+. $GESDIR/${RUN}.t${cyc}z.envir.sh
+
+export OMP_NUM_THREADS_CH=14
+export APRUNC="time"
+
+export VERBOSE=YES
+export JCAP=574
+
+# Set fixed variables
+if [[ "$JCAP" = "1534" ]] ; then
+   export LONB=3072
+   export LATB=1536
+elif [[ "$JCAP" = "574" ]] ; then
+   export LONB=1152
+   export LATB=576
+   #export LONB=1760
+   #export LATB=880
+elif [[ "$JCAP" = "382" ]] ; then
+   export LONB=1152
+   export LATB=576
+elif [[ "$JCAP" = "62" ]] ; then
+   export LONB=192
+   export LATB=94
+fi
+export LEVS=64
+export LSOIL=4
+export IDRT=4
+export NTRAC=3
+export CLIMO_FIELDS_OPT=3
+export LANDICE_OPT=2
+export rdgrid=.true.
+export nopdpvv=.true.
+
+export CHGRESVARS="use_ufo=.true.,nst_anl=.true.,rdgrid=.true.,idvc=2,idvt=21,idsl=1,IDVM=0,OUTTYP=2,nopdpvv=.true."
+
+# If tmmark=tm06, this job is being run at the start of the catchup cycle 
+# If tmmark=tm00, the NAM forecast is being coldstarted off the GDAS first guess 
+
+if [ $tmmark = tm06 ] ; then
+
+datetm06=`${NDATE} -6 $CYCLE`
+
+echo DATEXX${datetm06} > ncepdate.npstm06
+cp ncepdate.npstm06 $DATA/metgrid/.
+
+start=$ystart$mstart$dstart$hstart
+
+CYCer=`cat ncepdate.npstm06 | cut -c 7-16`
+CYCstart=`${NDATE} -0 $CYCer`
+CYCgdas=`${NDATE} -6 $CYCer`
+
+echo DATEXX${CYCgdas} > nmcdate.gdas
+
+PDYgds=`cat nmcdate.gdas | cut -c7-14`
+yygds=`cat nmcdate.gdas | cut -c7-10`
+mmgds=`cat nmcdate.gdas | cut -c11-12`
+ddgds=`cat nmcdate.gdas | cut -c13-14`
+cycgds=`cat nmcdate.gdas | cut -c15-16`
+
+end=`${NDATE} +00 $start`
+
+yend=`echo $end | cut -c1-4`
+mend=`echo $end | cut -c5-6`
+dend=`echo $end | cut -c7-8`
+hend=`echo $end | cut -c9-10`
+
+DATE=`echo $start | cut -c1-8`
+
+fi
+
+if [ $tmmark = tm00 ] ; then
+
+datetm00=`${NDATE} -0 $CYCLE`
+
+echo DATEXX${datetm00} > ncepdate.npstm00
+cp ncepdate.npstm00 $DATA/metgrid/.
+
+### modify namelist file
+PDYstart=`cat ncepdate.npstm00 | cut -c7-14`
+ystart=`cat ncepdate.npstm00 | cut -c7-10`
+mstart=`cat ncepdate.npstm00 | cut -c11-12`
+dstart=`cat ncepdate.npstm00 | cut -c13-14`
+hstart=`cat ncepdate.npstm00 | cut -c15-16`
+
+start=$ystart$mstart$dstart$hstart
+
+CYCer=`cat ncepdate.npstm00 | cut -c 7-16`
+CYCstart=`${NDATE} -0 $CYCer`
+CYCgdas=`${NDATE} -6 $CYCer`
+
+echo DATEXX${CYCgdas} > nmcdate.gdas
+
+PDYgds=`cat nmcdate.gdas | cut -c7-14`
+yygds=`cat nmcdate.gdas | cut -c7-10`
+mmgds=`cat nmcdate.gdas | cut -c11-12`
+ddgds=`cat nmcdate.gdas | cut -c13-14`
+cycgds=`cat nmcdate.gdas | cut -c15-16`
+
+end=`${NDATE} +00 $start`
+
+yend=`echo $end | cut -c1-4`
+mend=`echo $end | cut -c5-6`
+dend=`echo $end | cut -c7-8`
+hend=`echo $end | cut -c9-10`
+
+fi
+
+hrs="06"
+ 
+for hr in $hrs
+do
+
+# 8/2018: New getges_linkges_pgrb.sh script for FV3GFS has changes to get atmf nemsio file
+
+vldgdas=`${NDATE} $hr ${PDYgds}${cycgds}`
+${UTIL_USHnam}/getges_linkges_pgrb.sh -t natges -v $vldgdas -e ${envir_getges} atmf${hr} 
+
+done
+
+## We assume here that for FV3GFS ecf job is loading util_shared/1.1.0
+export FIXGLOBAL=$FIXSUBDA  # set by module util_shared
+export FIXgsm=$FIXSUBDA
+export SLMASK=$FIXGLOBAL/global_slmask.t$JCAP.$LONB.$LATB.${SUF}grb
+export OROGRAPHY=$FIXGLOBAL/global_orography.t$JCAP.$LONB.$LATB.${SUF}grb
+export OROGRAPHY_UF=$FIXGLOBAL/global_orography_uf.t$JCAP.$LONB.$LATB.${SUF}grb
+export LONSPERLAT=$FIXGLOBAL/global_lonsperlat.t$JCAP.$LONB.$LATB.txt
+
+###
+
+export FNSOTC=$FIXgsm/global_soiltype.statsgo.t$JCAP.$LONB.$LATB.rg.grb
+export SOILTYPE_INP=statsgo
+export SOILTYPE_OUT=statsgo
+
+export FNVETC=$FIXgsm/global_vegtype.igbp.t$JCAP.$LONB.$LATB.rg.grb
+export VEGTYPE_INP=igbp
+export VEGTYPE_OUT=igbp
+
+export FNABSC=$FIXgsm/global_mxsnoalb.uariz.t$JCAP.$LONB.$LATB.rg.grb
+export FNALBC=$FIXgsm/global_snowfree_albedo.bosu.t$JCAP.$LONB.$LATB.rg.grb
+export FNALBC2=$FIXgsm/global_albedo4.1x1.grb
+export FNZORC=igbp
+export FNTSFC=$FIXgsm/RTGSST.1982.2012.monthly.clim.grb
+export FNAISC=$FIXgsm/CFSR.SEAICE.1982.2012.monthly.clim.grb
+
+export SIGINP=atmf06
+export SIGOUT=sigma.t${JCAP}
+export SFCOUT=sfcfile.t${JCAP}
+$GLOBALCHGRES # set by module util_shared/1.1.0
+export err=$?;err_chk
+
+# move files back to GESDIR
+mv sigma.t${JCAP} $GESDIR/nam.t${cyc}z.sigges.${tmmark}
+
+exit $err

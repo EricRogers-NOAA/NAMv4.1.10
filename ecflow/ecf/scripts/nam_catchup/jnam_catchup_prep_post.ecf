@@ -1,0 +1,50 @@
+#BSUB -J %E%nam_catchup_prep_post_tm%TMMARK%_%CYC%
+#BSUB -o /%COM%/output/%ENVIR%/today/nam_catchup_prep_post_tm%TMMARK%_%CYC%.o%J
+#BSUB -e /%COM%/output/%ENVIR%/today/nam_catchup_prep_post_tm%TMMARK%_%CYC%.o%J
+#BSUB -L /bin/sh
+#BSUB -q prod2_serv
+#BSUB -cwd /gpfs/dell1/nco/ops/tmpnwprd
+#BSUB -W 01:00
+#BSUB -P %PROJ%
+#BSUB -R rusage[mem=500]
+#BSUB -R affinity[core]
+
+%include <head.h>
+%include <envir-p3.h>
+
+
+set -x
+
+export cyc=%CYC%
+export tmmark=tm%TMMARK%
+export job=nam_catchup_prep_post_tm%TMMARK%_%CYC%
+
+VERSION_FILE=$NWROOT/versions/obsproc_nam.ver
+if [ -f $VERSION_FILE ]; then
+  . $VERSION_FILE
+else
+  ecflow_client --msg="***JOB ${ECFNAME} ERROR: Version File $VERSION_FILE does not exist ***"
+  ecflow_client --abort
+  exit
+fi
+
+
+$NWROOT/obsproc_nam.${obsproc_nam_ver}/jobs/JNAM_PREP_POST
+
+%include <tail.h>
+%manual
+######################################################################
+PURPOSE:  Job to execute the TM06 EDAS PREPBUFR post-processing for the 06Z
+           cycle (creating unrestricted PREPBUFR files)
+
+######################################################################
+
+######################################################################
+# Job specific troubleshooting instructions:
+#  see generic troubleshoot manual page
+#
+######################################################################
+
+# include manual page below
+%end
+

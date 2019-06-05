@@ -1,0 +1,2 @@
+/bin/rm -f  *.o *.mod libnceppost.a ncep_post 
+/bin/rm -rf include 

@@ -1,0 +1,36 @@
+#!/bin/bash
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc}_main_${envir}
+
+  # Got these from the FV3GFS env.
+  export MPI_LABELIO=YES
+  export MP_STDOUTMODE="ORDERED"
+  export KMP_STACKSIZE=2048M
+  export KMP_AFFINITY=scatter
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+#
+# Get needed variables from exnam_prelim.sh.sms
+#
+. $GESDIR/nam.t${cyc}z.envir.sh
+
+########################################################
+# Execute the script.
+${HOMEnam}/scripts/exnam_metgrid_boco.sh.ecf
+jerr=$?
+########################################################
+
+cat $pgmout
+cat errfile
+cat metgrid.log
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+exit $jerr

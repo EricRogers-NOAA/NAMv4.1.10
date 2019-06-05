@@ -1,0 +1,28 @@
+#!/bin/bash
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc}_${tmmark}_${envir}
+
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+module use -a /gpfs/dell1/nco/ops/nwprod/modulefiles/
+module load gempak/7.3.1
+
+########################################################
+# Execute the script.
+${HOMEnam}/scripts/exnam_postsnd.sh.ecf
+jerr=$?
+########################################################
+
+cat $pgmout
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+cd ${DATAROOT}
+exit $jerr

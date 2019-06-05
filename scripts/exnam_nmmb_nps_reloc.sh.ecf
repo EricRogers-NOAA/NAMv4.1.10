@@ -1,0 +1,571 @@
+#!/bin/ksh
+
+################################################################################
+####  UNIX Script Documentation Block
+#                      .                                             .
+# Script name:         exnam_nmmb_nps_reloc.sh.ecf
+# Script description:  GDAS first guess input to get BC for TC relocation  
+#
+# Author:        Guang Ping Lou       Date: 2013-12-18
+#
+# Script history log:
+# 2014-01-18  GuangPing Lou - Added multiple hurricanes BC.
+# 2015-07-13  GuangPing Lou - Combine NPS and relocation to one script
+# 2016-07-27  Rogers - Mods for NAMv4
+
+export PS4='$SECONDS + '
+set -x
+
+msg="JOB $job FOR NMMB HAS BEGUN"
+#postmsg "$jlogfile" "$msg"
+
+export PDY=$PDY
+export tmmark=$tmmark
+export cyc=$cyc
+export pid=$$
+export pgmout="OUTPUT.${pid}"
+
+export STORM=$1
+
+#
+# Get needed variables from exndas_prelim.sh.sms
+#
+. $GESDIR/nam.t${cyc}z.envir.sh
+
+. $GESDIR/nam.t${cyc}z.envir.numbstm.${tmmark}.sh
+
+# Determine how many storms there are which is detected by testTCvital.sh
+
+cp $COMOUT/nam.t${cyc}z.numb_tmpvit.${tmmark} numb_tmpvit
+
+num_stm=`cat numb_tmpvit`
+if [ $num_stm -eq 0 ]; then
+ echo No tropical storm ...  exit nmmb_nps_relocate.sms
+ exit 0
+ else
+if [ $tmmark == tm06 ]; then
+   export STARTDATE=`${NDATE} -06 $CYCLE`
+   export GFSDATE=`${NDATE} -12 $CYCLE`
+  elif [ $tmmark == tm00 ]; then
+   export STARTDATE=$CYCLE
+   export GFSDATE=`${NDATE} -6 $CYCLE`
+  else
+   echo 'this cycle does not do relocation '
+   exit 0
+fi
+### modify namelist file
+PDYstart=`echo $STARTDATE  | cut -c1-8`
+ystart=`echo $STARTDATE | cut -c1-4`
+mstart=`echo $STARTDATE | cut -c5-6`
+dstart=`echo $STARTDATE | cut -c7-8`
+hstart=`echo $STARTDATE | cut -c9-10`
+
+end=`${NDATE} +0 $STARTDATE`
+yend=`echo $end | cut -c1-4`
+mend=`echo $end | cut -c5-6`
+dend=`echo $end | cut -c7-8`
+hend=`echo $end | cut -c9-10`
+
+PDYgfs=`echo $GFSDATE | cut -c1-8`
+yygfs=`echo $GFSDATE | cut -c1-4`
+mygfs=`echo $GFSDATE | cut -c5-6`
+ddgfs=`echo $GFSDATE | cut -c7-8`
+hhgfs=`echo $GFSDATE | cut -c9-10`
+
+export COMINgfsstart=${COMINgfs}/gfs.${PDYgfs}/${hhgfs}
+
+# jj=1
+#while [ $jj -le $num_stm ]
+#do
+jj=$STORM
+
+cp ${GESDIR}/${RUN}.t${cyc}z.latlons.${jj}.${tmmark} latlons
+ 
+mkdir -p $DATA/ungrib
+
+cd $DATA/ungrib
+
+cenlat=` cat $DATA/latlons | awk '{ print $2}' `
+cenlon=` cat $DATA/latlons | awk '{ print $3}' `
+
+geogpath=$FIXnam/geog
+
+cat $PARMnam/nam_namelist.nps_reloc | sed s:YSTART:$ystart:g | sed s:MSTART:$mstart:g \
+ | sed s:DSTART:$dstart:g | sed s:HSTART:$hstart:g | sed s:YEND:$yend:g \
+ | sed s:MEND:$mend:g     | sed s:DEND:$dend:g | sed s:HEND:$hend:g \
+ | sed s:GEOGPATH:$geogpath:g | sed s:CENLAT:$cenlat:g | sed s:CENLON:$cenlon:g > namelist.nps
+
+rm -f Vtable
+
+#####
+
+cp $PARMnam/nam_Vtable.GFS_reloc Vtable
+
+hr="06"
+
+ln -sf $COMINgfsstart/gfs.t${hhgfs}z.pgrb2.0p50.f0${hr} gdas.pgbf${hr}
+ln -sf gdas.pgbf06 GRIBFILE.AAA
+
+####
+
+export pgm=nam_ungrib
+. prep_step
+
+startmsg
+${MPIEXEC} $EXECnam/nam_ungrib >> $pgmout 2>errfile
+export err=$?;err_chk
+
+mv errfile $DATA/errfile.ungrib
+
+### run geogrid
+mkdir -p $DATA/geogrid
+cd $DATA/geogrid
+
+cp $DATA/ungrib/namelist.nps .
+
+cat > nam_reloc.nml_stub1 << !
+&input_data
+  leaf_area_idx_file=""
+  gfrac_file="$FIXnam/geog/green.0.144.bin"
+  mxsnow_alb_file="$FIXnam/geog/mxsno.1.0.bin"
+  roughness_file="igbp"
+  slopetype_file="$FIXnam/geog/slope.1.0.bin"
+  snowfree_albedo_file="$FIXnam/geog/albedo.1.0.bin"
+  soiltype_tile_file="$FIXnam/geog/topsoil_fao.30s"
+  substrate_temp_file="$FIXnam/geog/tbot.1.0.bin"
+  vegtype_tile_file="$FIXnam/geog/veg_igbp1a.bin"
+  lsmask_file="$FIXnam/geog/mask.umd.flake.30s.bin"
+  orog_file="$FIXnam/geog/terrain_usgs.v2_30s.bin"
+/
+!
+
+cat $PARMnam/nam_reloc.nml_stub nam_reloc.nml_stub1 > nam_reloc.nml
+
+cat nam_reloc.nml | sed s:CENLAT:$cenlat:g | sed s:CENLON:$cenlon:g > testb.nml
+cp ${PARMnam}/nam_GEOGRID.TBL.NMB GEOGRID.TBL
+ln -sf testb.nml fort.81
+rm -rf cored*
+mv $DATA/ungrib/$pgmout .
+
+export pgm=nam_geogrid
+. prep_step
+
+startmsg
+${MPIEXEC} $EXECnam/nam_geogrid >> $pgmout 2>errfile
+export err=$?;err_chk
+
+mv errfile $DATA/errfile.geogrid
+
+### run metgrid
+mkdir -p $DATA/metgrid
+cd $DATA/metgrid
+
+mv $DATA/geogrid/$pgmout .
+
+cp $DATA/ungrib/namelist.nps .
+cp $PARMnam/nam_METGRID.TBL.NMM_reloc METGRID.TBL
+ln -sf $DATA/geogrid/geo_nmb.d01.dio geo_nmb.d01.dio
+ln -sf $DATA/ungrib/FILE:${ystart}-${mstart}-${dstart}_${hstart} .
+ 
+export pgm=nam_metgrid
+. prep_step
+
+startmsg
+${MPIEXEC} $EXECnam/nam_metgrid >> $pgmout 2>errfile
+export err=$?;err_chk
+
+mv errfile $DATA/errfile.metgrid
+
+### run nemsinterp
+
+mkdir -p $DATA/nemsinterp
+cd $DATA/nemsinterp
+
+cp $DATA/metgrid/$pgmout .
+ln -sf $DATA/metgrid/met_nmb*dio . 
+cp $DATA/metgrid/namelist.nps .
+
+export pgm=nam_nemsinterp
+. prep_step
+
+startmsg
+${MPIEXEC} $EXECnam/nam_nemsinterp >> $pgmout 2>errfile
+export err=$?;err_chk
+
+mv errfile $DATA/errfile.nemsinterp
+
+# move files back to GESDIR
+cp input_domain_01_nemsio $GESDIR/nam.t${cyc}z.input_domain_01_nemsio.${tmmark}_reloc_$jj
+rm input_domain_01
+
+mv $pgmout $DATA/.
+
+cd $DATA
+
+cat errfile.ungrib errfile.metgrid errfile.nemsinterp > errfile
+
+fi
+
+echo "ENDING nmmb_nps_relo_imprv.ecf " `date`
+
+# Now do the relocation. The following portion is from scripts
+# nmmb_reloc.ecf so that the two scripts combined to one here.
+
+echo "STARTING NMMB_relo_ecf " `date`
+##########################################################
+# nmmb_relocate.ecf
+###################################################################################
+#
+# This script relocates hurricane componnent from forecast fields
+# to NHC issued hurricane location.
+#
+#  December 2012, Qingfu Liu     - Created "hwrf_relocate_nmmb.sh".
+#  December 2013, Guang Ping Lou - Overhaul completely for retro-run NAM.
+#                                - Changed name to nmmb_relocate.sms
+#  January 2014, Guang Ping Lou  - if there is no NAM model low center, use GFS's
+#  January 2014, Guang Ping Lou  - modified so that it works for multiple hurricanes
+#  March   2014, Guang Ping Lou  - Added safeguard to exit in case of no need in doing this.
+#  June    2014, Guang Ping Lou  - Migrate to WCOSS from ZEUS
+#
+####################################################################################
+set -x
+########## GET THE INPUT VARIABLES #######################
+echo "STARTING  nmmb_relo.ecf " `date`
+
+. $GESDIR/${RUN}.t${cyc}z.envir.sh
+
+num_stm=`cat $DATA/numb_tmpvit`
+if [ $tmmark == tm06 ]; then
+   export STARTDATE=`${NDATE} -06 $CYCLE`
+  elif [ $tmmark == tm00 ]; then
+   export STARTDATE=$CYCLE
+  else
+   echo 'this cycle does not do relocation '
+   exit 0
+fi
+
+if [ $num_stm -ge 1 ]; then
+export jj=$STORM
+cd $DATA
+storm_id=` cat $DATA/latlons | awk '{ print $1}' `
+if [ -n $storm_id ]
+    then
+  cenlat=` cat $DATA/latlons | awk '{ print $2}' `
+  cenlon=` cat $DATA/latlons | awk '{ print $3}' `
+  cp latlons $DATAnpsreloc/latlons_${numstorm} 
+
+  export yyyy=` echo $STARTDATE | cut -c 1-4 `
+  export yy=`   echo $STARTDATE | cut -c 3-4 `
+  export mm=`   echo $STARTDATE | cut -c 5-6 `
+  export dd=`   echo $STARTDATE | cut -c 7-8 `
+  export hh=`   echo $STARTDATE | cut -c 9-10 `
+  export yymmdd=` echo ${STARTDATE} | cut -c3-8`
+  export yymmddhh=${yymmdd}${hh}
+
+    echo 'yyyy = ' ${yyyy}
+    echo 'yy   = ' ${yy}
+    echo 'mm   = ' ${mm}
+    echo 'dd   = ' ${dd}
+    echo 'hh   = ' ${hh}
+
+    echo 'CYCLE    = ' ${CYCLE}
+    echo 'storm_id = ' ${storm_id}
+else
+    echo 'Usage: sh hwrf_relocate.sh n_st STARTDATE storm_id '
+    echo 'Example: ./hwrf_relocate_nmmb.sh 20120829 tm09'
+    echo 'NEED FOUR ARGUMENTS'
+    echo 'SCRIPT WILL EXIT'
+    err=911
+    err_exit 'NEED FIVE ARGUMENTS'
+    exit
+fi 
+################################################################
+
+storm_n=`echo $storm_id | cut -c 1-2 `
+basin=`  echo $storm_id | cut -c 3-3 `
+
+if   [ ${basin} = 'L' -o ${basin} = 'l' ]; then
+    basin=AL
+elif [ ${basin} = 'E' -o ${basin} = 'e' ]; then
+    basin=EP
+elif [ ${basin} = 'C' -o ${basin} = 'c' ]; then
+    basin=CP
+else
+    echo 'add basin parameters'
+fi
+
+export iflag_nest=0
+
+# Control settings
+
+cp $GESDIR/${RUN}.t${cyc}z.tmpvit.${tmmark} numb_tmpvit
+
+ncp=${CP_PATH:-/bin/cp}
+grep "NHC  ${storm_id}" $DATA/numb_tmpvit > tmpvit1
+numvit=` cat tmpvit1 | wc -l`
+
+if [ $numvit -eq 0 ]; then
+  set +x
+  echo " "
+  echo " !!! ERROR: No vitals for storm_id  = ---> $storm_id  <---"
+  echo " !!!                  and yymmddhh = ---> ${PDY}${cyc} <---"
+  echo "            was found in the tcvitals archive...."
+  echo " "
+  echo "     Are you forcing the script to read a separate, specific"
+  echo "     TC Vitals file?"
+  echo " "
+  echo " EXITING DUE TO NO VITALS FOR THIS STORM AND TIME" | tee ${KICKhwrf}/failure.${storm_id}.${PDY}${cyc}
+  echo " "
+  set -x
+  exit 98
+else
+  set +x
+  echo " "
+  echo "Vitals record for requested run follows...."
+  echo " "
+  cat tmpvit1
+  echo " "
+  set -x
+  cp tmpvit1 ./message1
+  cp tmpvit1 ./storms.checked
+  cp tmpvit1 ./storms.nhc
+  echo 1           > ./nestnum
+  echo 1           > ./nstorms
+  echo ${yymmddhh} > ./stormdate
+
+cp tmpvit1 ./storm_vit
+cp tmpvit1 ./tcvitals.as
+
+cat << eor > ./domain.center
+$cenlat
+$cenlon
+eor
+
+fi
+
+set -x
+
+# Set paths for runtime and save directories
+tmpdir=${DATA}
+
+if [ $tmmark == tm06 ]; then
+ namdata=${RUN}.t${cyc}z.input_domain_01_nemsio.${tmmark}
+fi
+if [ $tmmark = tm00 ] ; then
+ if [ $GUESStm00 = NAM ] ; then
+   namdata=${RUN}.t${cyc}z.nmm_b_restart_nemsio.tm01
+ fi
+ if [ $GUESStm00 = GDAS ] ; then
+   namdata=${RUN}.t${cyc}z.input_domain_01_nemsio.tm00
+ fi
+fi
+
+echo "namdata= " $namdata
+
+cp $GESDIR/$namdata .
+
+#Changed to 6hr GFS forecasts -- Guang Ping Lou
+testf1_d1=$GESDIR/${RUN}.t${cyc}z.input_domain_01_nemsio.${tmmark}_reloc_$jj         # GFS 6hr forecasts
+
+ln -s -f $namdata          wrfinput_d02
+ln -s -f $testf1_d1        wrfinput_d01
+
+st_int=` cat tcvitals.as | awk '{ print $13}' `
+
+   echo "relocate from wrfinput_d01 to new_gfs_d01"
+    echo "wrfinput_d01"        > itag1_reloc
+    echo "relocate"            >> itag1_reloc
+    echo "new_gfs_d01"   >> itag1_reloc
+
+    export pgm=nems_bin_io_degree.exe
+    . prep_step
+
+    startmsg
+    ${EXECnam}/nam_nems_bin_io_degree.exe < itag1_reloc >> $pgmout 2>errfile
+    export err=$?;err_chk
+    if [ $err -ne 0 ]; then
+        err_exit "executable nems_bin_io.exe returned error code $err"
+    fi
+
+   echo "relocate from wrfinput_d02 to new_nmm_d02"
+    echo "wrfinput_d02"        > itag2_reloc
+    echo "relocate"            >> itag2_reloc
+    echo "new_nmm_d02"   >> itag2_reloc
+
+    export pgm=nems_bin_io_degree.exe
+    . prep_step
+
+    startmsg
+    ${EXECnam}/nam_nems_bin_io_degree.exe < itag2_reloc >> $pgmout 2>errfile
+    export err=$?;err_chk
+    if [ $err -ne 0 ]; then
+        err_exit "executable nems_bin_io.exe returned error code $err"
+    fi
+
+    # prepare NAM track file
+    cp $COMIN/${RUN}.t${cyc}z.trak.nam.atcf_hfip.${STARTDATE}.${tmmark} trak.nam.atcf_hfip.${STARTDATE}
+    grep "${basin}, ${storm_n}, ${STARTDATE}" \
+           trak.nam.atcf_hfip.${STARTDATE} \
+           |grep " NAM," |sort -u |sed 's/NAM, 00000,/NAM, 000,/' >nam_atcfunix  
+# check to see if there is a low in NAM.
+numvit_nam=` cat nam_atcfunix | wc -l`
+if [ $numvit_nam -gt 0 ]; then
+
+ln -s -f $tmpdir/tcvitals.as           fort.11
+ln -s -f $tmpdir/nam_atcfunix          fort.12
+ln -s -f $tmpdir/trak.fnl.all_gfs      fort.30
+
+export pgm=nam_create_trak_fnl.exe
+. prep_step
+
+startmsg
+echo $storm_id $yyyy | ${EXECnam}/nam_create_trak_fnl.exe >> $pgmout 2>errfile
+export err=$?;err_chk
+
+if [ $err -ne 0 ]; then
+    err_exit "executable nam_create_trak_fnl.exe returned error code $err"
+fi
+
+rm -f $tmpdir/roughness
+rm -f $tmpdir/roughness2
+
+rm -f fort.*
+
+ln -s -f $tmpdir/tcvitals.as            fort.11
+ln -s -f $tmpdir/new_gfs_d01            fort.26
+ln -s -f $tmpdir/new_nmm_d02            fort.36
+ln -s -f $tmpdir/new_gfs_d03            fort.46
+ln -s -f $tmpdir/data_4x_gfs            fort.56
+ln -s -f $tmpdir/roughness2             fort.66
+ln -s -f $tmpdir/in_or_out              fort.12
+
+export gesfhr=6
+export ibgs=1
+
+export pgm=nam_merge_nest_b.exe
+. prep_step
+
+startmsg
+echo $gesfhr $st_int $ibgs $iflag_nest $cenlat $cenlon | ${EXECnam}/nam_merge_nest_b.exe >> $pgmout 2>errfile
+export err=$?;err_chk
+
+if [ $err -ne 0 ]; then
+    err_exit "executable nam_merge_nest_b.exe returned error code $err"
+fi
+
+inout=` cat in_or_out `
+if [ $inout == 'IN' ]; then
+
+rm -f fort.*
+
+ln -s -f $tmpdir/tcvitals.as            fort.11
+ln -s -f $tmpdir/data_4x_gfs            fort.26
+ln -s -f $tmpdir/trak.fnl.all_gfs       fort.30
+ln -s -f $tmpdir/new_gfs_d01            fort.46 
+ln -s -f $tmpdir/gfs_env                fort.56
+ln -s -f $tmpdir/rel_inform_gfs.$STARTDATE  fort.52
+ln -s -f $tmpdir/vital_syn_gfs.$STARTDATE   fort.55
+ln -s -f $tmpdir/storm_pert_gfs         fort.71
+ln -s -f $tmpdir/storm_radius           fort.65
+ln -s -f $tmpdir/storm_radius_gfs       fort.85
+
+ln -s -f $tmpdir/wrf_split_62       fort.62
+export gesfhr=6
+export ibgs=2
+
+testf_d1=$tmpdir/storm_pert_new
+
+export pgm=nam_split_b.exe
+. prep_step
+
+startmsg
+echo $gesfhr $ibgs $st_int $iflag_nest | ${EXECnam}/nam_split_b.exe >> $pgmout 2>errfile
+export err=$?;err_chk 
+echo "executable nam_split_b.exe return code err = ${err}"  
+if [ $err -ne 0 ]; then
+    err_exit "executable nam_split_b.exe returned error code $err"
+fi
+
+export gfs_flag=6
+
+cp -rp $tmpdir/storm_pert_gfs $tmpdir/storm_pert_new
+
+testf_d1=$tmpdir/storm_pert_new
+
+if [ -f $testf_d1 ]; then
+    echo "This is not a cold start, previous six hour forecast is located at " $testf_d1
+
+    rm -f fort.*
+    rm -f $tmpdir/flag_file
+    rm -f $tmpdir/flag_file2
+
+    ln -s -f $tmpdir/tcvitals.as            fort.11
+    ln -s -f $tmpdir/nam_atcfunix          fort.12
+    ln -s -f $tmpdir/gfs_env                fort.26
+    ln -s -f $tmpdir/wrf_env_new            fort.36
+    ln -s -f $tmpdir/storm_pert_new         fort.71
+    ln -s -f $tmpdir/roughness1             fort.46
+    ln -s -f $tmpdir/new_data_4x            fort.56
+
+    export gesfhr=6
+
+    export pgm=nam_anl_step_b.exe 
+    . prep_step
+
+    startmsg
+    echo $gesfhr $gfs_flag $iflag_nest | ${EXECnam}/nam_anl_step_b.exe >> $pgmout 2>errfile
+    export err=$?;err_chk
+
+    if [ $err -ne 0 ]; then
+        err_exit "executable nam_anl_step_b.exe returned error code $err"
+    fi
+
+    cp  $tmpdir/storm_radius_gfs         $tmpdir/storm_radius_1
+
+    rm -f fort.*
+    
+    ln -s -f $tmpdir/tcvitals.as             fort.11
+    ln -s -f $tmpdir/wrf_env_new             fort.36
+    ln -s -f $tmpdir/new_nmm_d02             fort.46
+    ln -s -f $tmpdir/new_nmm_d02             fort.26
+    ln -s -f $tmpdir/storm_radius_1          fort.85 
+    ln -s -f $tmpdir/data_merge_d01          fort.56
+    
+    export gesfhr=6
+
+    export pgm=nam_inter_4to6.exe
+    . prep_step
+
+    startmsg
+    echo $gesfhr | ${EXECnam}/nam_inter_4to6.exe >> $pgmout 2>errfile
+    export err=$?;err_chk
+
+    if [ $err -ne 0 ]; then
+        err_exit "executable nam_inter_4to6.exe returned error code $err"
+    else
+        cp $tmpdir/new_nmm_d02 $DATAnpsreloc/new_nmm_d02_${numstorm}
+        cp $tmpdir/data_merge_d01 $DATAnpsreloc/data_merge_d01_${numstorm}
+        cp $tmpdir/data_merge_d01 $GESDIR/${RUN}.t${cyc}z.data_merge_d01_${numstorm}.${tmmark}
+    fi
+
+fi
+
+rm -f fort.*
+
+fi      #### inout
+
+
+else    ####if [ $numvit_nam -gt 0 ]; then
+echo "no storm needs to be relocated (numvit_nam = 0)" 
+msg="no storms found in NAM first guess, so nothing needs to be relocated (numvit_nam = 0)"
+postmsg "$jlogfile" "$msg"
+fi      ####if [ $numvit_nam -gt 0 ]; then
+
+else    ####if [ $num_stm -ge 1 ]; then
+echo "no storm needs to be relocated (num_stm = 0)"
+msg="no storm needs to be relocated (num_stm = 0)"
+postmsg "$jlogfile" "$msg"
+exit
+fi      ####if [ $num_stm -ge 1 ]; then
+
+echo "ENDING NMMB_relo_imprv " `date`

@@ -1,0 +1,732 @@
+#!/bin/ksh
+
+################################################################################
+####  UNIX Script Documentation Block
+#                      .                                             .
+# Script name:         exnam_trkr_nam_reloc.sh.ecf
+# Script description:  This script uses cyclone tracker to get TC location in NAM
+#                      first guess
+#
+# Script history log:
+#
+#  June    2013, Guang Ping Lou  - Initial script
+#  June    2015, Eric Rogers     - Mods for NAM parallel run
+#  July    2016, Eric Rogers     - Final mods for NAMv4
+#
+####################################################################################
+
+export PS4='$SECONDS + '
+
+set -x
+##############################################################################
+echo " "
+echo "------------------------------------------------"
+echo "xxxx - Track vortices in model GRIB output"
+echo "------------------------------------------------"
+qid=$$
+#----------------------------------------------#
+#   Get input date information                 #
+#----------------------------------------------#
+echo "STARTING extrkr_nam_reloc.sh " `date`
+
+loopnum=1
+cmodel=nam
+export tmmark=$tmmark
+export PDY=$PDY
+export cyc=$cyc
+
+export cycnam=$cyc
+
+export PERTDATA=$DATA
+if [ $tmmark == tm06 ]; then
+   SDATE=`${NDATE} -06 ${PDY}${cyc}`
+   PDY=`echo ${SDATE} | cut -c1-8`
+   cyc=`echo ${SDATE} | cut -c9-10`
+ elif [ $tmmark == tm00 ]; then
+   SDATE=${PDY}${cyc}
+   PDY=`echo ${SDATE} | cut -c1-8`
+   cyc=`echo ${SDATE} | cut -c9-10`
+fi
+
+export CYL=$cyc
+export CYCLE=t${CYL}z
+export PARAFLAG=${PARAFLAG:-YES}
+export PHASEFLAG=n
+export WCORE_DEPTH=1.0
+export PHASE_SCHEME=both
+export STRUCTFLAG=n
+export IKEFLAG=n
+
+# Define tracker working directory 
+rundir=$PARMnam
+cd $PERTDATA
+if [ ! -d $PERTDATA ]
+then
+   mkdir -p $PERTDATA
+   cd $PERTDATA
+fi
+cd $PERTDATA
+
+scc=`echo ${PDY} | cut -c1-2`
+syy=`echo ${PDY} | cut -c3-4`
+smm=`echo ${PDY} | cut -c5-6`
+sdd=`echo ${PDY} | cut -c7-8`
+shh=${CYL}
+symd=`echo ${PDY} | cut -c3-8`
+syyyy=`echo ${PDY} | cut -c1-4`
+symdh=${PDY}${CYL}
+
+# These are not used in NAM TC relocation
+export gfsvitdir=${gfsvitdir:-/com/gfs/prod/gfs.$PDY}
+export namvitdir=${namvitdir:-/com2/nam/${envir}/nam.$PDY}
+export gltrkdir=${gltrkdir:-/com/hur/${envir}/global}
+
+#export homesyndir=${homesyndir:-/nwprod/util}
+export exectrkdir=$EXECnam
+#export ushtrkdir=${ushtrkdir:-${homesyndir}/ush}
+export archsyndir=${archsyndir:-/com/arch/prod/syndat}
+
+wgrib=$WGRIB
+wgrib2=$WGRIB2
+
+export maxtime=65    # Max number of forecast time levels
+
+#----------------------------------------------------------------#
+#
+#    --- Define data directories and data file names ---
+#               
+# Convert the input model to lowercase letters and check to see 
+# if it's a valid model, and assign a model ID number to it.  
+# This model ID number is passed into the Fortran program to 
+# let the program know what set of forecast hours to use in the 
+# ifhours array.  Also, set the directories for the operational 
+# input GRIB data files and create templates for the file names.
+# While only 1 of these sets of directories and file name 
+# templates is used during a particular run of this script, 
+# "gfsvitdir" is used every time, because that is the directory 
+# that contains the error-checked TC vitals file that Steve Lord 
+# produces, and so it is included after the case statement.
+#
+#----------------------------------------------------------------#
+
+cmodel=`echo ${cmodel} | tr "[A-Z]" "[a-z]"`
+
+set +x                                           
+# "gribver" is an environmental variable that should be defined
+# and exported in the parent script that calls this script.
+export gribver=${gribver:-2}
+  trkrtype=tracker
+
+   Phr=01
+   case ${cmodel} in
+
+      nam) set +x
+         echo " "; echo " ++ operational NAM chosen";
+         echo " "                                         ;
+         set -x                                           ;
+       if [ ${gribver} -eq 1 ]; then
+         namgfile=nam.t${CYL}z.awip32
+         namifile=nam.t${CYL}z.awip32i
+       else
+         namdir=./
+         namgfile=BGRDAW${Phr}.${tmmark}.latlon
+         namifile=
+       fi                                                 ;
+         fcstlen=84                                       ;
+         fcsthrs=' 00 99 99 99 99 99 99 99 99 99 99 99 99 99
+                   99 99 99 99 99 99 99 99 99 99 99 99 99 99
+                   99 99 99 99 99 99 99 99 99 99 99 99 99 99
+                   99 99 99 99 99 99 99 99 99 99 99 99 99 99
+                   99 99 99 99 99 99 99 99 99';
+         atcfnum=73                                       ;
+         atcfname="nam "                                  ;
+         atcfout="nam"                                    ;
+         grmodel="nam"                                   ;
+         atcf_vit=${atcfout}                              ;
+         mslpthresh=0.0015                                ;
+         v850thresh=1.5000                                ;
+         export PHASEFLAG=n                                 ;
+         export PHASE_SCHEME=cps                            ;
+         modtyp='regional'                                ;
+         atcffreq=600                                 ;
+         rundescr="xxxx"                              ;
+         atcfdescr="xxxx"                             ;
+         file_sequence="onebig"                       ;
+         lead_time_units='hours'                      ;
+         g2_jpdtn=0                                       ;
+         model=6                                         ;;
+
+     *) set +x                                            ;
+         echo " "                                         ;
+         echo " !!! Model selected is not recognized."    ;
+         echo " Model= --> ${cmodel} <-- ... Please submit the script again...";
+         echo " "                                         ;
+         set -x                                           ;
+         err_exit " FAILED ${jobid} -- UNKNOWN cmodel IN TRACKER SCRIPT -\
+    ABNORMAL EXIT";;
+
+   esac
+
+export trkrebd=350.0
+export trkrwbd=160.0
+export trkrnbd=80.0
+export trkrsbd=0.0
+
+  wgrib_parmlist=" HGT:850 HGT:700 UGRD:850 UGRD:700 UGRD:500 VGRD:850 VGRD:700 VGRD:500 SurfaceU SurfaceV ABSV:850 ABSV:700 PRMSL "
+
+#---------------------------------------------------------------#
+#
+#      --------  TC Vitals processing   --------
+#
+# Check Steve Lord's operational tcvitals file to see if any 
+# vitals records were processed for this time by his system.  
+# If there were, then you'll find a file in /com/gfs/prod/gfs.yymmdd 
+# with the vitals in it.  Also check the raw TC Vitals file in
+# /com/arch/prod/syndat , since this may contain storms that Steve's 
+# system ignored (Steve's system will ignore all storms that are 
+# either over land or very close to land);  We still want to track 
+# these inland storms, AS LONG AS THEY ARE NHC STORMS (don't 
+# bother trying to track inland storms that are outside of NHC's 
+# domain of responsibility -- we don't need that info).
+#--------------------------------------------------------------#
+
+# First check to see if the vitals file is in gfsvitdir or not.  If 
+# it's not, then run Hua-Lu's ftp script to get the file from one
+# of the other machines.  If it's still not there, then no big 
+# deal; this script will exit just a little further down once it
+# realizes there are not any storms to process.
+
+   dnow_str="${symd} ${CYL}00"
+   d6ago_ymdh=` ${NDATE} -6 ${PDY}${CYL}`
+   d6ago_4ymd=` echo ${d6ago_ymdh} | cut -c1-8`
+   d6ago_ymd=` echo ${d6ago_ymdh} | cut -c3-8`
+   d6ago_hh=`  echo ${d6ago_ymdh} | cut -c9-10`
+   d6ago_str="${d6ago_ymd} ${d6ago_hh}00"
+
+   d6ahead_ymdh=` ${NDATE} 6 ${PDY}${CYL}`
+   d6ahead_4ymd=` echo ${d6ahead_ymdh} | cut -c1-8`
+   d6ahead_ymd=` echo ${d6ahead_ymdh} | cut -c3-8`
+   d6ahead_hh=`  echo ${d6ahead_ymdh} | cut -c9-10`
+   d6ahead_str="${d6ahead_ymd} ${d6ahead_hh}00"
+
+# For NAM TC relocation only $synvitdir/synvitfile used but others
+# must be set for script to work
+
+   synvitdir=${COMINnhc}/storm-data/ncep
+   synvitfile=tcvitals
+   synvit6ago_dir=${COMINnhc}/storm-data/ncep
+   synvit6ago_file=tcvitals
+   synvit6ahead_dir=${COMINnhc}/storm-data/ncep
+   synvit6ahead_file=tcvitals
+
+set +x
+echo " "
+echo "              -----------------------------"
+echo " "
+echo " Now sorting and updating the TC Vitals file.  Please wait...."
+echo " "
+set -x
+
+current_str="${symd} ${CYL}00"
+
+   if [ -s ${synvitdir}/${synvitfile} -o\
+        -s ${synvit6ago_dir}/${synvit6ago_file} -o\
+        -s ${synvit6ahead_dir}/${synvit6ahead_file} ]; then
+      grep "${d6ago_str}" ${synvit6ago_dir}/${synvit6ago_file}        \
+             |grep NHC | grep -v TEST | grep -v INVEST | sort -u      \
+                    >${PERTDATA}/tmpsynvit.${atcfout}.${PDY}${CYL}
+      grep "${dnow_str}"  ${synvitdir}/${synvitfile}                  \
+             |grep NHC | grep -v TEST | grep -v INVEST | sort -u      \
+                   >>${PERTDATA}/tmpsynvit.${atcfout}.${PDY}${CYL}
+      grep "${d6ahead_str}" ${synvit6ahead_dir}/${synvit6ahead_file}  \
+             |grep NHC | grep -v TEST | grep -v INVEST | sort -u      \
+                   >>${PERTDATA}/tmpsynvit.${atcfout}.${PDY}${CYL}
+   else
+      set +x
+      echo " "
+      echo " There is no (synthetic) TC vitals file for ${CYL}z in "
+      echo "${synvitdir}, nor is there a TC vitals file for ${d6ago_hh}z in "
+      echo "${synvit6ago_dir}, nor is there a TC vitals file for ${d6ahead_hh}z"
+      echo " in ${synvit6ahead_dir}.  Checking the raw TC Vitals file ....."
+      echo " "
+      set -x
+   fi
+
+# IMPORTANT:  When "cat-ing" these files, make sure that the vitals
+# files from the "raw" TC vitals files are first in order and Steve's
+# TC vitals files second.  This is because Steve's vitals file has
+# been error-checked, so if we have a duplicate tc vitals record in
+# these 2 files (very likely), program supvit.x below will
+# only take the last vitals record listed for a particular storm in
+# the vitals file (all previous duplicates are ignored, and Steve's
+# error-checked vitals records are kept).
+
+# No tmprawvit file in TC reloc, so just copy tmpsynvit file to vitals file
+
+cp ${PERTDATA}/tmpsynvit.${atcfout}.${PDY}${CYL} ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL}
+
+#--------------------------------------------------------------#
+# Now run a fortran program that will read all the TC vitals
+# records for the current dtg and the dtg from 6h ago, and
+# sort out any duplicates.  If the program finds a storm that
+# was included in the vitals file 6h ago but not for the current
+# dtg, this program updates the 6h-old first guess position
+# and puts these updated records as well as the records from
+# the current dtg into a temporary vitals file.  It is this
+# temporary vitals file that is then used as the input for the
+# tracking program.
+#--------------------------------------------------------------#
+
+   ymdh6ago=` ${NDATE} -6 ${PDY}${CYL}`
+   syy6=`echo ${ymdh6ago} | cut -c3-4`
+   smm6=`echo ${ymdh6ago} | cut -c5-6`
+   sdd6=`echo ${ymdh6ago} | cut -c7-8`
+   shh6=`echo ${ymdh6ago} | cut -c9-10`
+   syyyy6=`echo ${ymdh6ago} | cut -c1-4`
+   symd6=${syy6}${smm6}${sdd6}
+
+   ymdh6ahead=` ${NDATE} 6 ${PDY}${CYL}`
+   syyp6=`echo ${ymdh6ahead} | cut -c3-4`
+   smmp6=`echo ${ymdh6ahead} | cut -c5-6`
+   sddp6=`echo ${ymdh6ahead} | cut -c7-8`
+   shhp6=`echo ${ymdh6ahead} | cut -c9-10`
+   syyyyp6=`echo ${ymdh6ahead} | cut -c1-4`
+   symdp6=${syyp6}${smmp6}${sddp6}
+
+   echo "&datenowin   dnow%yy=${syy}, dnow%mm=${smm},"       >${PERTDATA}/suv_input.${atcfout}.${PDY}${CYL}
+   echo "             dnow%dd=${sdd}, dnow%hh=${CYL}/"      >>${PERTDATA}/suv_input.${atcfout}.${PDY}${CYL}
+   echo "&date6agoin  d6ago%yy=${syy6}, d6ago%mm=${smm6},"  >>${PERTDATA}/suv_input.${atcfout}.${PDY}${CYL}
+   echo "             d6ago%dd=${sdd6}, d6ago%hh=${shh6}/"  >>${PERTDATA}/suv_input.${atcfout}.${PDY}${CYL}
+   echo "&date6aheadin  d6ahead%yy=${syyp6}, d6ahead%mm=${smmp6},"  >>${PERTDATA}/suv_input.${atcfout}.${PDY}${CYL}
+   echo "               d6ahead%dd=${sddp6}, d6ahead%hh=${shhp6}/"  >>${PERTDATA}/suv_input.${atcfout}.${PDY}${CYL}
+
+numvitrecs=`cat ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL} | wc -l`
+if [ ${numvitrecs} -eq 0 ]; then
+
+  if [ ${trkrtype} = 'tracker' ]
+  then
+    set +x
+    echo " "
+    echo "!!! NOTE -- There are no vitals records for this time period."
+    echo "!!! File ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL} is empty."
+    echo "!!! It could just be that there are no storms for the current"
+    echo "!!! time.  Please check the dates and submit this job again...."
+    echo " "
+    set -x
+    exit 1
+  fi
+
+fi
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# Before running the program to read, sort and update the vitals,
+# first run the vitals through some awk logic, the purpose of 
+# which is to convert all the 2-digit years into 4-digit years.
+# We need this logic to ensure that all the vitals going
+# into supvit.f have uniform, 4-digit years in their records.
+#
+# 1/8/2000: sed code added by Tim Marchok due to the fact that 
+#       some of the vitals were getting past the syndata/qctropcy
+#       error-checking with a colon in them; the colon appeared
+#       in the character immediately to the left of the date, which
+#       was messing up the "(length($4) == 8)" statement logic.
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+sed -e "s/\:/ /g"  ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL} > ${PERTDATA}/tempvit
+mv ${PERTDATA}/tempvit ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL}
+
+awk '
+{
+  yycheck = substr($0,20,2)
+  if ((yycheck == 20 || yycheck == 19) && (length($4) == 8)) {
+    printf ("%s\n",$0)
+  }
+  else {
+    if (yycheck >= 0 && yycheck <= 50) {
+      printf ("%s20%s\n",substr($0,1,19),substr($0,20))
+    }
+    else {
+      printf ("%s19%s\n",substr($0,1,19),substr($0,20))
+    }
+  }
+} ' ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL} >${PERTDATA}/vitals.${atcfout}.${PDY}${CYL}.y4
+
+mv ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL}.y4 ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL}
+
+if [ ${numvitrecs} -gt 0 ]
+then
+
+  export pgm=supvit
+  . prep_step
+
+  ln -s -f ${PERTDATA}/vitals.${atcfout}.${PDY}${CYL}         fort.31
+  ln -s -f ${PERTDATA}/vitals.upd.${atcfout}.${PDY}${CYL}     fort.51
+
+  msg="$pgm start for $atcfout at ${CYL}z"
+  postmsg "$jlogfile" "$msg"
+
+  ${exectrkdir}/nam_supvit <${PERTDATA}/suv_input.${atcfout}.${PDY}${CYL} >> $pgmout 2>errfile
+  suvrcc=$?
+
+  if [ ${suvrcc} -eq 0 ]
+  then
+    msg="$pgm end for $atcfout at ${CYL}z completed normally"
+    postmsg "$jlogfile" "$msg"
+  else
+    set +x
+    echo " "
+    echo "!!! ERROR -- An error occurred while running supvit.x, "
+    echo "!!! which is the program that updates the TC Vitals file."
+    echo "!!! Return code from supvit.x = ${suvrcc}"
+    echo "!!! model= ${atcfout}, forecast initial time = ${PDY}${CYL}"
+    echo "!!! Exiting...."
+    echo " "
+    set -x
+    err_exit " FAILED ${jobid} - ERROR RUNNING SUPVIT IN TRACKER SCRIPT- ABNORMAL EXIT"
+  fi
+
+else
+
+  touch ${PERTDATA}/vitals.upd.${atcfout}.${PDY}${CYL}
+
+fi
+
+#------------------------------------------------------------------#
+# Now select all storms to be processed, that is, process every
+# storm that's listed in the updated vitals file for the current
+# forecast hour.  If there are no storms for the current time,
+# then exit.
+#------------------------------------------------------------------#
+
+numvitrecs=`cat ${PERTDATA}/vitals.upd.${atcfout}.${PDY}${CYL} | wc -l`
+if [ ${numvitrecs} -eq 0 ]
+then
+  if [ ${trkrtype} = 'tracker' ]
+  then
+    set +x
+    echo " "
+    echo "!!! NOTE -- There are no vitals records for this time period "
+    echo "!!! in the UPDATED vitals file."
+    echo "!!! It could just be that there are no storms for the current"
+    echo "!!! time.  Please check the dates and submit this job again...."
+    echo " "
+    set -x
+    exit 1
+  fi
+fi
+
+set +x
+echo " "
+echo " *--------------------------------*"
+echo " |        STORM SELECTION         |"
+echo " *--------------------------------*"
+echo " "
+set -x
+
+ict=1
+while [ $ict -le 15 ]
+do
+  stormflag[${ict}]=3
+  let ict=ict+1
+done
+
+dtg_current="${symd} ${CYL}00"
+stormmax=` grep "${dtg_current}" ${PERTDATA}/vitals.upd.${atcfout}.${PDY}${CYL} | wc -l`
+
+if [ ${stormmax} -gt 15 ]
+then
+  stormmax=15
+fi
+
+sct=1
+while [ ${sct} -le ${stormmax} ]
+do
+  stormflag[${sct}]=1
+  let sct=sct+1
+done
+
+
+#---------------------------------------------------------------#
+#
+#    --------  "Genesis" Vitals processing   --------
+#
+
+  touch ${PERTDATA}/genvitals.upd.${cmodel}.${atcfout}.${PDY}${CYL}
+    
+#-----------------------------------------------------------------#
+#
+#         ------  CUT APART INPUT GRIB FILES  -------
+#
+# For the selected model, cut apart the GRIB input files in order
+# to pull out only the variables that we need for the tracker.  
+# Put these selected variables from all forecast hours into 1 big 
+# GRIB file that we'll use as input for the tracker.
+# 
+#-----------------------------------------------------------------#
+
+set +x
+echo " "
+echo " -----------------------------------------"
+echo "   NOW CUTTING APART INPUT GRIB FILES TO "
+echo "   CREATE 1 BIG GRIB INPUT FILE "
+echo " -----------------------------------------"
+echo " "
+set -x
+
+regflag=`grep NHC ${PERTDATA}/vitals.upd.${atcfout}.${PDY}${CYL} | wc -l`
+
+# ----------------------------------
+#   Process Early NAM, if selected
+# ----------------------------------
+
+   if [ ${model} -eq 6 ]; then
+
+      grid='255 0 381 161 80000 160000 128 0000 350000  500  500 0'
+      grid2="0 6 0 0 0 0 0 0 381 161 0 0 80000000 160000000 48 0000000 350000000 500000 500000 0"
+
+      if [ ${regflag} -eq 0 ]; then
+         if [ ${trkrtype} = 'tracker' ]; then
+            set +x
+            echo " "
+            echo " !!! NAM model has been selected, but there are no storms in"
+            echo " !!! the TC Vitals file that can be processed.  That is, "
+            echo " !!! there are no Vitals records from NHC.  The vitals "
+            echo " !!! records that are in the updated vitals file must be from"
+            echo " !!! another cyclone forecast center, and the Eta domain does"
+            echo " !!! not extend to any region other than that covered by NHC."
+            echo " !!! Exiting....."
+            set -x
+            err_exit " FAILED ${jobid} - ERROR IN TRACKER SCRIPT - ABNORMAL EXIT"
+            exit 1
+         fi
+      fi
+
+      if [ -s ${PERTDATA}/namlatlon.pgrb.${PDY}${CYL} ]; then
+         rm ${PERTDATA}/namlatlon.pgrb.${PDY}${CYL}
+      fi
+
+      fhour=00
+
+       if [ ${gribver} -eq 1 ]; then
+         if [ ! -s ${namdir}/${namgfile}$fhour}.tm00 ]; then
+            set +x
+            echo " "
+            echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            echo " !!! Early NAM File missing:                            "
+            echo " !!! ${namdir}/${namgfile}${fhour}.tm00                 "
+            echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            echo " "
+            echo " !!! Please re-run the job when NAM file is available ..... "
+            echo " "
+            missing_file_cnt=$(($missing_file_cnt+1))
+            set -x
+            err_exit " FAILED ${jobid} - MISSING NAM FILE IN TRACKER SCRIPT - ABNORMAL EXIT"
+         fi
+
+         if [ -s ${namdir}/${namifile}${fhour}.tm00 ]; then
+            x1=${namdir}/${namifile}${fhour}.tm00
+         else
+            if [ -s ${PERTDATA}/tmpnamixfile ]; then
+               rm ${PERTDATA}/tmpnamixfile
+            fi
+            $GRBINDEX ${namdir}/${namgfile}${fhour}.tm00 ${PERTDATA}/tmpnamixfile
+            x1=${PERTDATA}/tmpnamixfile
+         fi
+
+         set +x
+         echo " "
+         echo " Extracting Early NAM GRIB data for forecast hour = $fhour"
+         echo " "
+         set -x
+
+         g1=${namdir}/${namgfile}${fhour}.tm00
+
+         $COPYGB -g"$grid" -k'4*-1 33 100 850' $g1 $x1 ${PERTDATA}/namllu850.grb.f${fhour};   rcc1=$?
+         $COPYGB -g"$grid" -k'4*-1 33 100 700' $g1 $x1 ${PERTDATA}/namllu700.grb.f${fhour};   rcc2=$?
+         $COPYGB -g"$grid" -k'4*-1 33 100 500' $g1 $x1 ${PERTDATA}/namllu500.grb.f${fhour};   rcc3=$?
+         $COPYGB -g"$grid" -k'4*-1 33 105 10'  $g1 $x1 ${PERTDATA}/namllu10m.grb.f${fhour};   rcc4=$?
+         $COPYGB -g"$grid" -k'4*-1 41 100 850' $g1 $x1 ${PERTDATA}/namllav850.grb.f${fhour};  rcc5=$?
+         $COPYGB -g"$grid" -k'4*-1 41 100 700' $g1 $x1 ${PERTDATA}/namllav700.grb.f${fhour};  rcc6=$?
+         $COPYGB -g"$grid" -k'4*-1  7 100 850' $g1 $x1 ${PERTDATA}/namllz850.grb.f${fhour};   rcc7=$?
+         $COPYGB -g"$grid" -k'4*-1  7 100 700' $g1 $x1 ${PERTDATA}/namllz700.grb.f${fhour};   rcc8=$?
+         $COPYGB -g"$grid" -k'4*-1  2 102   0' $g1 $x1 ${PERTDATA}/namllmslp.grb.f${fhour};   rcc9=$?
+
+         if [ $rcc1 -eq 134 -o $rcc2 -eq 134 -o $rcc3 -eq 134 -o $rcc4 -eq 134 -o $rcc5 -eq 134 -o \
+            $rcc6 -eq 134 -o $rcc7 -eq 134 -o $rcc8 -eq 134 -o $rcc9 -eq 134 ]
+         then
+            set +x
+            echo " "
+            echo "!!! ERROR using $cgb to interpolate nam data.  We will stop"
+            echo "!!! execution because some variables may have been copied "
+            echo "!!! okay, while some obviously have not, and that could lead"
+            echo "!!! to unreliable results from the tracker.  Check to make"
+            echo "!!! sure you've allocated enough memory for this job. "
+            echo "!!! Exiting...."
+            echo " "
+            set -x
+            err_exit " FAILED ${jobid} - ERROR INTERPOLATING NAM PERTDATA IN TRACKER SCRIPT - ABNORMAL EXIT"
+         fi
+
+        cat ${PERTDATA}/namllu850.grb.f${fhour} ${PERTDATA}/namllu700.grb.f${fhour} \
+        ${PERTDATA}/namllu500.grb.f${fhour} ${PERTDATA}/namllz850.grb.f${fhour}     \
+        ${PERTDATA}/namllz700.grb.f${fhour} ${PERTDATA}/namllmslp.grb.f${fhour}     \
+        ${PERTDATA}/namllav850.grb.f${fhour} ${PERTDATA}/namllav700.grb.f${fhour}   \
+        ${PERTDATA}/namllu10m.grb.f${fhour} \
+        >>${PERTDATA}/namlatlon.pgrb.${PDY}${CYL}
+
+      $GRBINDEX ${PERTDATA}/namlatlon.pgrb.${PDY}${CYL} ${PERTDATA}/namlatlon.pgrb.ix.${PDY}${CYL}
+      gribfile=${PERTDATA}/namlatlon.pgrb.${PDY}${CYL}
+      ixfile=${PERTDATA}/namlatlon.pgrb.ix.${PDY}${CYL}
+
+   else ##${gribver} -eq 2
+
+        if [  -s ${namdir}/${namgfile} ]
+        then
+          echo ${namdir}/${namgfile}
+        cp ${namdir}/${namgfile} ${PERTDATA}
+        else
+            set +x
+            echo " "
+            echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            echo " !!! ERROR: grib version 2 files are missing for:     !!!!!!!!!!!!!!"
+            echo " !!! cmodel= ${cmodel}                                !!!!!!!!!!!!!!"
+            echo " !!! symdh=  ${symdh}                                 !!!!!!!!!!!!!!"
+            echo " !!! fhour=  ${fhour}                                 !!!!!!!!!!!!!!"
+            echo " !!! Check for the existence of these files:          !!!!!!!!!!!!!!"
+            echo " !!!     ${namdir}/${namgfile}                        !!!!!!!!!!!!!!"
+            echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            echo " "
+            set -x
+            err_exit " FAILED ${jobid} - MISSING GRIB FILE - ABNORMAL EXIT"
+        fi
+
+        set -x
+
+      fi
+
+      $GRB2INDEX $PERTDATA/${namgfile} ${namgfile}.ix
+
+      gribfile=$PERTDATA/${namgfile}
+      ixfile=${namgfile}.ix
+
+   fi
+
+#------------------------------------------------------------------------#
+#                         Now run the tracker                            #
+#------------------------------------------------------------------------#
+
+ist=1
+while [ $ist -le 15 ]
+do
+  if [ ${stormflag[${ist}]} -ne 1 ]
+  then
+    set +x; echo "Storm number $ist NOT selected for processing"; set -x
+  else
+    set +x; echo "Storm number $ist IS selected for processing...."; set -x
+  fi
+  let ist=ist+1
+done
+
+namelist=${PERTDATA}/input.${atcfout}.${PDY}${CYL}
+ATCFNAME=` echo "${atcfname}" | tr '[a-z]' '[A-Z]'`
+
+  export atcfymdh=${scc}${syy}${smm}${sdd}${shh}
+
+contour_interval=100.0
+write_vit=n
+want_oci=.TRUE.
+
+echo "&datein inp%bcc=${scc},inp%byy=${syy},inp%bmm=${smm},"      >${namelist}
+echo "        inp%bdd=${sdd},inp%bhh=${shh},inp%model=${model}," >>${namelist}
+echo "        inp%modtyp='${modtyp}',"                           >>${namelist}
+echo "        inp%lt_units='${lead_time_units}',"                >>${namelist}
+echo "        inp%file_seq='${file_sequence}',"                  >>${namelist}
+echo "        inp%nesttyp='${nest_type}'/"                       >>${namelist}
+echo "&atcfinfo atcfnum=${atcfnum},atcfname='${ATCFNAME}',"      >>${namelist}
+echo "          atcfymdh=${atcfymdh},atcffreq=${atcffreq}/"      >>${namelist}
+echo "&trackerinfo trkrinfo%westbd=${trkrwbd},"                  >>${namelist}
+echo "      trkrinfo%eastbd=${trkrebd},"                         >>${namelist}
+echo "      trkrinfo%northbd=${trkrnbd},"                        >>${namelist}
+echo "      trkrinfo%southbd=${trkrsbd},"                        >>${namelist}
+echo "      trkrinfo%type='${trkrtype}',"                        >>${namelist}
+echo "      trkrinfo%mslpthresh=${mslpthresh},"                  >>${namelist}
+echo "      trkrinfo%v850thresh=${v850thresh},"                  >>${namelist}
+echo "      trkrinfo%gridtype='${modtyp}',"                      >>${namelist}
+echo "      trkrinfo%contint=${contour_interval},"               >>${namelist}
+echo "      trkrinfo%want_oci=${want_oci},"                      >>${namelist}
+echo "      trkrinfo%out_vit='${write_vit}',"                    >>${namelist}
+echo "      trkrinfo%gribver=${gribver},"                        >>${namelist}
+echo "      trkrinfo%g2_jpdtn=${g2_jpdtn}/"                      >>${namelist}
+echo "&phaseinfo phaseflag='${PHASEFLAG}',"                      >>${namelist}
+echo "           phasescheme='${PHASE_SCHEME}',"                 >>${namelist}
+echo "           wcore_depth=${WCORE_DEPTH}/"                    >>${namelist}
+echo "&structinfo structflag='${STRUCTFLAG}',"                   >>${namelist}
+echo "            ikeflag='${IKEFLAG}'/"                         >>${namelist}
+echo "&fnameinfo  gmodname='${atcfname}',"                       >>${namelist}
+echo "            rundescr='${rundescr}',"                       >>${namelist}
+echo "            atcfdescr='${atcfdescr}'/"                     >>${namelist}
+echo "&verbose verb=3/"                                          >>${namelist}
+echo "&waitinfo use_waitfor='n',"                                >>${namelist}
+echo "          wait_min_age=10,"                                >>${namelist}
+echo "          wait_min_size=100,"                              >>${namelist}
+echo "          wait_max_wait=1800,"                             >>${namelist}
+echo "          wait_sleeptime=5,"                               >>${namelist}
+echo "          per_fcst_command=''/"                            >>${namelist}
+
+export pgm=gettrk
+. prep_step
+
+ln -s -f ${gribfile}                                               fort.11
+ln -s -f ${PERTDATA}/vitals.upd.${atcfout}.${PDY}${shh}                fort.12
+ln -s -f ${PERTDATA}/genvitals.upd.${cmodel}.${atcfout}.${PDY}${CYL}   fort.14
+ln -s -f $PARMnam/${cmodel}.tracker_leadtimes                     fort.15
+ln -s -f ${ixfile}                                                 fort.31
+
+    ln -s -f ${PERTDATA}/trak.${atcfout}.all.${PDY}${CYL}       fort.61
+    ln -s -f ${PERTDATA}/trak.${atcfout}.atcf.${PDY}${CYL}      fort.62
+    ln -s -f ${PERTDATA}/trak.${atcfout}.radii.${PDY}${CYL}     fort.63
+    ln -s -f ${PERTDATA}/trak.${atcfout}.atcfunix.${PDY}${CYL}  fort.64
+    ln -s -f ${PERTDATA}/trak.${atcfout}.atcf_gen.${PDY}${CYL}  fort.66
+    ln -s -f ${PERTDATA}/trak.${atcfout}.atcf_sink.${PDY}${CYL} fort.68
+    ln -s -f ${PERTDATA}/trak.${atcfout}.atcf_hfip.${PDY}${CYL} fort.69
+
+    ln -s -f ${PERTDATA}/trak.${atcfout}.cps_parms.${PDY}${CYL}          fort.71
+
+    ln -s -f ${PERTDATA}/trak.${atcfout}.structure.${PDY}${CYL}          fort.72
+    ln -s -f ${PERTDATA}/trak.${atcfout}.fractwind.${PDY}${CYL}          fort.73
+    ln -s -f ${PERTDATA}/trak.${atcfout}.pdfwind.${PDY}${CYL}            fort.76
+
+    ln -s -f ${PERTDATA}/trak.${atcfout}.ike.${PDY}${CYL}                fort.74
+
+set +x
+echo " "
+echo " -----------------------------------------------"
+echo "           NOW EXECUTING TRACKER......"
+echo " -----------------------------------------------"
+echo " "
+set -x
+
+msg="$pgm start for $atcfout at ${CYL}z"
+postmsg "$jlogfile" "$msg"
+
+export pgm=gettrk
+. prep_step
+startmsg
+
+${exectrkdir}/nam_gettrk <${namelist} >> $pgmout 2>errfile
+export err=$?;err_chk
+
+awk 'match($0,"0 ,    0 ,   0,    0, XX") == 0 {print $0}' ${PERTDATA}/trak.${atcfout}.atcf_hfip.${PDY}${CYL} > ${PERTDATA}/trak.hfip.out
+trackfile=$COMOUT/nam.t${cycnam}z.trak.${atcfout}.atcf_hfip.${PDY}${CYL}.${tmmark}
+cp ${PERTDATA}/trak.hfip.out $trackfile
+
+if [ -s $trackfile ] ; then
+  msg="$pgm for $atcfout at ${CYL}z completed normally"
+  postmsg "$jlogfile" "$msg"
+  echo "Current time is: `date`"
+  echo "ENDING extrkr_nam_reloc.sh " `date`
+else
+  echo " WARNING ${jobid} -- NO TRACK FILE MADE BY TRACKER SCRIPT, EXIT"
+  msg="WARNING ${jobid} -- NO TRACK FILE MADE BY TRACKER SCRIPT, EXIT"
+  postmsg "$jlogfile" "$msg"
+fi

@@ -1,0 +1,12 @@
+set -x
+
+rm build.log
+
+CODE=$PWD/..
+
+cd $CODE/src
+gmake clean
+gmake nmm J=-j4 > build.log.dell 2>&1
+
+cd $CODE
+mv $CODE/exe/NEMS.x ../../exec/dell.exec/nam_nems_nmmb_fcst

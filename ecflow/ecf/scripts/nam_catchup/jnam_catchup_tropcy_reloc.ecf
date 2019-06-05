@@ -1,0 +1,63 @@
+#BSUB -J %E%nam_catchup_tropcy_reloc_tm%TMMARK%_%CYC%
+#BSUB -o /%COM%/output/%ENVIR%/today/nam_catchup_tropcy_reloc_tm%TMMARK%_%CYC%.o%J
+#BSUB -e /%COM%/output/%ENVIR%/today/nam_catchup_tropcy_reloc_tm%TMMARK%_%CYC%.o%J
+#BSUB -L /bin/sh
+#BSUB -R span[ptile=1]
+#BSUB -n 3
+   
+#BSUB -q %QUEUE%
+#BSUB -cwd /gpfs/dell1/nco/ops/tmpnwprd
+#BSUB -W 00:30
+#BSUB -P %PROJ%
+
+
+module purge
+%include <head.h>
+%include <envir-p3.h>
+
+set -x
+
+model=nam
+%include <model_ver.h>
+
+export cyc=%CYC%
+export tmmark=tm%TMMARK%
+export job=nam_catchup_tropcy_reloc_tm%TMMARK%_%CYC%
+
+module load EnvVars/$EnvVars_ver
+module load lsf/$lsf_ver
+module load ips/$ips_ver
+module load impi/$impi_ver
+module load CFP/$CFP_ver
+module load grib_util/$grib_util_ver
+
+
+VERSION_FILE=$NWROOT/versions/tropcy_qc_reloc.ver
+if [ -f $VERSION_FILE ]; then
+   . $VERSION_FILE
+else
+   ecflow_client --msg="***JOB ${ECF_NAME} ERROR: Version File $VERSION_FILE does not exist ***"
+   ecflow_client --abort
+   exit
+fi
+
+
+$NWROOT/tropcy_qc_reloc.${tropcy_qc_reloc_ver}/jobs/JNAM_TROPCY_RELOC
+
+%include <tail.h>
+%manual
+######################################################################
+PURPOSE:  Job to execute the NAM tropical cyclone relocation
+          for the 00Z cycle at time 03-hours prior to cycle time
+
+######################################################################
+
+######################################################################
+# Job specific troubleshooting instructions:
+#  see generic troubleshoot manual page
+#
+######################################################################
+
+# include manual page below
+%end
+

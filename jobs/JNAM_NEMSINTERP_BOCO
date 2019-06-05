@@ -1,0 +1,48 @@
+#!/bin/bash
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc}_main_${envir}
+
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+  # Got these from the FV3GFS env.
+  export MPI_LABELIO=YES
+  export MP_STDOUTMODE="ORDERED"
+  export KMP_STACKSIZE=2048M
+  export KMP_AFFINITY=scatter
+
+#
+# Get needed variables from exnam_prelim.sh.sms
+#
+. $GESDIR/nam.t${cyc}z.envir.sh
+
+########################################################
+# Execute the script.
+# run_nemsinterp_${inum} or run_nemsinterp_${tmmark} 
+# created in nam_prelim job
+
+if [ $tmmark = tm00 ] ; then
+  # inum set in ECFLOW LSF script or ROCOTO xml
+  cd $DATA/run_nemsinterp_${inum}
+  ${HOMEnam}/scripts/exnam_nemsinterp_boco${inum}.sh.ecf
+  jerr=$?
+else
+  # tmmark set in ECFLOW LSF script or ROCOTO xml
+  cd $DATA/run_nemsinterp_${tmmark}
+  ${HOMEnam}/scripts/exnam_catchup_nemsinterp_boco.sh.ecf $tmmark
+  jerr=$?
+fi
+########################################################
+
+cat $pgmout
+cat errfile
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+exit $jerr

@@ -1,0 +1,24 @@
+#
+set files = ( `cat list` )
+foreach file ($files)
+sed 's/envir-p2/envir-p3/g' $file > $file.new
+mv $file.new $file
+end
+
+set files = ( `cat list` )
+foreach file ($files)
+sed 's/tmpnwprd/gpfs\/dell1\/nco\/ops\/tmpnwprd/g' $file > $file.new
+mv $file.new $file
+end
+
+set files = ( `cat list` )
+foreach file ($files)
+sed 's/#BSUB -x//g' $file > $file.new
+mv $file.new $file
+end
+
+set files = ( `cat list` )
+foreach file ($files)
+sed 's/#BSUB -a poe//g' $file > $file.new
+mv $file.new $file
+end

@@ -1,0 +1,103 @@
+#!/bin/sh
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=${jobid:?}
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+####################################
+# Everything that follows is specific
+# to RadMon
+####################################
+
+####################################
+# Additional Settings for RadMon
+####################################
+export REGIONAL_RR=${REGIONAL_RR:-1}
+export RADMON_SUFFIX=${RADMON_SUFFIX:-$RUN}
+
+####################################
+# Determine Job Output Name on System
+####################################
+export pid=$$
+export pgmout="OUTPUT.${pid}"
+export pgmerr=errfile
+export cycle=t${cyc}z
+export rgnHH=${cycle}
+export rgnTM=${tmmark}
+
+##############################################
+# VERBOSE  - Specify Verbose Output in exglobal
+##############################################
+export VERBOSE=${VERBOSE:-YES}
+
+##############################################
+# Specify Execution Areas
+##############################################
+
+export HOMEradmon=${HOMEradmon:-${NWROOT}/radmon_shared.${radmon_shared_ver}}
+export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
+export FIXradmon=${FIXradmon:-${HOMEradmon}/fix}
+export USHradmon=${USHradmon:-$HOMEradmon/ush}
+
+#############################################
+# COMOUT - WHERE GSI OUTPUT RESIDES
+# TANKverf - WHERE OUTPUT DATA WILL RESIDE
+#############################################
+
+export TANKverf=${TANKverf:-${COMROOT}/${NET}/${envir}}
+export TANKverf_rad=${TANKverf_rad:-${TANKverf}/radmon.${PDY}}
+
+mkdir -p -m 775 $TANKverf_rad
+ 
+env
+
+########################################
+# Set necessary environment variables
+########################################
+export RAD_AREA=${RAD_AREA:-rgn}
+export CYCLE_INTERVAL=${CYCLE_INTERVAL:-1}
+
+
+#####################################################################
+# Note:  The organization to the radstat catch-up files follows
+#        this logic:
+#####################################################################
+
+export biascr=${biascr:-$COMIN/${RADMON_SUFFIX}.${rgnHH}.satbias.${rgnTM}}
+export radstat=${radstat:-$COMIN/${RADMON_SUFFIX}.${rgnHH}.radstat.${rgnTM}}
+
+export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+export COMPRESS=${COMPRESS:-gzip}
+export UNCOMPRESS=${UNCOMPRESS:-gunzip}
+export Z=${Z:-gz}
+
+offset=`echo $tmmark | cut -c 3-4`
+DATEANL=`${NDATE} -$offset ${PDY}${cyc}`
+PDYmon=`echo $DATEANL | cut -c 1-8`
+cycmon=`echo $DATEANL | cut -c 9-10`
+
+msg="JOB HAS STARTED"
+postmsg "$jlogfile" "$msg"
+########################################################
+# Execute the script.
+echo "EXECUTING ${HOMEnam}/scripts/exnam_vrfyrad.sh.ecf"
+${HOMEnam}/scripts/exnam_vrfyrad.sh.ecf ${PDYmon} ${cycmon}
+########################################################
+msg="JOB COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+################################
+# Remove the Working Directory
+################################
+cd $DATAROOT
+if [ ${KEEPDATA:YES} = NO ] ; then 
+  rm -rf $DATA 
+fi
+
+date
+

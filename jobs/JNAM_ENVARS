@@ -1,0 +1,260 @@
+#!/bin/bash
+set -x
+
+export retro=${retro:-no}
+export RERUN=${RERUN:-NO}
+
+# * NOTE * #
+# We assume HOMEnam is set in the J-Job which calls this script
+# * NOTE * #
+
+###################################
+# Specify NET and RUN Name and model
+####################################
+export NET=${NET:-nam}
+export RUN=${RUN:-nam}
+
+export PS4='$SECONDS + '
+date
+
+######################################################
+# Determine if we are running on WCOSS or Theia.
+######################################################
+export MACHID=${MACHID:-wcoss}
+
+####################################
+# obtain unique process id (pid) and make temp directory
+#  WKDIRNAME is obtained from the parent J-JOB
+####################################
+export pid=$$
+export pgmout="OUTPUT.${pid}"
+export DATA=${DATAROOT:?}/${WKDIRNAME:?}
+mkdir -p $DATA
+cd $DATA
+
+export tmmark
+export cycle=t${cyc}z
+
+####################################
+# Specify Execution Areas
+####################################
+
+export EXECnam=${EXECnam:-${HOMEnam}/exec/${MACHID}.exec}
+export FIXnam=${FIXnam:-${HOMEnam}/fix}
+export PARMnam=${PARMnam:-${HOMEnam}/parm}
+export USHnam=${USHnam:-${HOMEnam}/ush}
+
+####################################################################
+# Add NAM-specific utilities via util/exec and util/ush directories
+####################################################################
+
+export UTIL_USHnam=${UTIL_USHnam:-${HOMEnam}/util/ush}
+export UTIL_EXECnam=${UTIL_EXECnam:-${HOMEnam}/util/exec/${MACHID}.exec}
+export UTIL_FIXnam=${UTIL_FIXnam:-${HOMEnam}/util/fix}
+export FIXCRTM=${FIXCRTM:-${FIXnam}/nam_CRTM_Coefficients}
+
+####################################################################
+# Specify envir for GDAS/GFS
+####################################################################
+
+export envir_getges=${envir_getges:-prod}
+
+###########################################
+# Identifify NAM RUNTYPE
+###########################################
+if [ ${cyc} -eq 00 -o ${cyc} -eq 06 -o ${cyc} -eq 12 -o ${cyc} -eq 18 ]; then
+  export RUNTYPE=CATCHUP
+else
+  export RUNTYPE=HOURLY
+fi
+
+###########################################
+# Run setpdy and initialize PDY variables
+###########################################
+if [ $tmmark != tm00 ] ; then
+    if test "$cyc" = "12"
+    then
+  #  Since this job runs before the 12 UTC 100 job runs
+  #  we need to use the /com/date/t00z file for our PDY
+	export cycle=t00z
+	$USHnam/setpdy_private.sh
+	. PDY.${jobid:?}
+	export cycle=t12z
+    elif test "$cyc" = "00"
+    then
+	$USHnam/setpdy_private.sh
+	. PDY.${jobid:?}
+	edate=`cat /com/date/t12z | cut -c7-14`
+	if [ $edate -eq $PDY ]
+	then
+	    export PDY=`finddate.sh $PDY d+1`
+	    $USHnam/setpdy_private.sh
+	    . PDY.${jobid:?}
+	fi
+    else
+	$USHnam/setpdy_private.sh
+	. PDY.${jobid:?}
+    fi
+else
+    $USHnam/setpdy_private.sh
+    . PDY.${jobid:?}
+    #end tmmark check
+fi
+
+export CDATE=$PDY$cyc
+
+#########################################
+# Specify MPI execution
+#########################################
+export MPIEXEC=${MPIEXEC:-mpirun.lsf}
+
+#########################################
+# Specify forecast lengths
+#########################################
+export FMAX_CATCHUP_PARENT=${FMAX_CATCHUP_PARENT:-84}
+export FMAX_CATCHUP_PARENT_BOCO=${FMAX_CATCHUP_PARENT_BOCO:-81}
+export FMAX_CATCHUP_NEST=${FMAX_CATCHUP_NEST:-60}
+export FMAX_CATCHUP_NEST_Firewx=${FMAX_CATCHUP_NEST_Firewx:-36}
+export FMAX_HOURLY_PARENT=${FMAX_HOURLY_PARENT:-18}
+export FMAX_HOURLY_NEST=${FMAX_HOURLY_NEST:-18}
+export PRDGENSWITCH_HOUR_PARENT=${PRDGENSWITCH_HOUR_PARENT:-36}
+export PRDGENSWITCH_HOUR_NEST=${PRDGENSWITCH_HOUR_NEST:-60}
+
+##############################################
+# Define COM directories
+##############################################
+## COMROOT's set in prod_envir module
+##
+export COM_OUT_VX=${COM_OUT_VX:-${COMROOT}/verif/${NET}/${envir}}
+export COM_AWP=${COM_AWP:-$COMROOT/${NET}/${envir}}
+export COMIN=${COMIN:-${COMROOT}/${NET}/${envir}/${RUN}.${PDY}}
+export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
+export COMOUT=${COMOUT:-${COMROOT}/${NET}/${envir}/${RUN}.${PDY}}
+export COM_OUT=${COM_OUT:-${COMROOT}/${NET}/${envir}}
+## ER 5/2019: 99.9% sure this is no longer needed
+##export COM_OUT_VX=${COM_OUT_VX:-${COMROOT}/verif/${NET}/${envir}}
+##export COMOUT_VX=${COMOUT_VX:-${COM_OUT_VX}/${RUN}.${PDY}}
+export COMAWP=${COMAWP:-$COM_AWP/${RUN}.${PDY}}
+export com=${com:-$COMOUT}
+export COMNAM=${COMNAM:-${COMROOT}/nam/${envir}}
+export COMINrap=${COMINrap:-$(compath.py rap/prod)}
+# Assume GFS V15 implemented
+export COMINgfs=${COMINgfs:-$(compath.py gfs/prod)}
+export COMINgdas=${COMINgfs:-$(compath.py gfs/prod)}
+## This line is for SST files on Dell
+###export COMINsst=${COMINsst:-${COMROOT}/gfs/prod}
+## This line is for SST files on Phase 2
+export COMINsst=${COMINsst:-${COMROOTp2}/gfs/prod}
+export COMINrtma=${COMINrtma:-$(compath.py rtma/prod)}
+export COMINccpa=${COMINccpa:-$(compath.py ccpa/prod)}
+export INPUT_FIRE_DIR=${INPUT_FIRE_DIR:-${DCOMROOT}/prod/burned_area}
+export NAMFIXgem=${NAMFIXgem:-${HOMEnam}/gempak/fix}
+export GETGES_COM=${GETGES_COM:-${COMROOThps}}
+export GETGES_NWG=${GETGES_NWG:-${GESROOThps}}
+export pcom=$PCOMROOT/nam  # needed by JNAM_POSTSND
+export COMINpcpanl=${COMINpcpanl:-$(compath.py pcpanl/prod)}
+# Input directory for PCP data, need to point to the current run environment
+export COM_HRLY_PCP=${COM_HRLY_PCP:-${COMNAM}}
+mkdir -m 775 -p $COM_HRLY_PCP
+# Input directory for radar reflectivity data
+export COM_HRLY=${COM_HRLY:-${COMROOT}/hourly/prod}
+# Input directory for NHC tcvitals data (change to Dell location when it is known)
+export COMINnhc=${COMINnhc:-/gpfs/gp1/nhc/save/guidance/}
+# Specify the directory where forecasts run
+export FCSTDIR=${DATAROOT}/nam_${cyc}_${tmmark}_${envir}
+
+##############################################
+# Define Paths to Observations
+##############################################
+
+### To SPA : these should be removed 
+### when NAM obsproc is running on the Dell
+export COM_PREPBUFR=${COMROOTp2}/nam/prod
+export COM_PREPBUFR_TM00=${COMROOTp2}/nam/prod
+export COM_IASI=${COMROOTp2}/nam/prod
+export COM_HIRS3=${COMROOTp2}/nam/prod
+export COM_HIRS4=${COMROOTp2}/nam/prod
+export COM_AMSUA=${COMROOTp2}/nam/prod
+export COM_AMSUB=${COMROOTp2}/nam/prod
+export COM_MHS=${COMROOTp2}/nam/prod
+export COM_GPSRO=${COMROOTp2}/nam/prod
+export COM_GOESFV=${COMROOTp2}/nam/prod
+export COM_AIRS=${COMROOTp2}/nam/prod
+export COM_RADWND=${COMROOTp2}/nam/prod
+export COM_NEXRAD=${COMROOTp2}/nam/prod
+export COM_ESAMUA=${COMROOTp2}/nam/prod
+export COM_LGYCLD=${COMROOTp2}/nam/prod
+export COM_LGHTNG=${COMROOTp2}/nam/prod
+export COM_SATWND=${COMROOTp2}/nam/prod
+export COM_ATMS=${COMROOTp2}/nam/prod
+export COM_CRIS=${COMROOTp2}/nam/prod
+export COM_SEVIRI=${COMROOTp2}/nam/prod
+export COM_SSMIS=${COMROOTp2}/nam/prod
+### 
+
+# PREPBUFR
+export COM_PREPBUFR=${COM_PREPBUFR:-$COM_IN}
+# IASI
+export COM_IASI=${COM_IASI:-$COM_IN}
+# HIRS3
+export COM_HIRS3=${COM_HIRS3:-$COM_IN}
+# HIRS4
+export COM_HIRS4=${COM_HIRS4:-$COM_IN}
+# AMSUA
+export COM_AMSUA=${COM_AMSUA:-$COM_IN}
+# AMSUB 
+export COM_AMSUB=${COM_AMSUB:-$COM_IN}
+# MHS
+export COM_MHS=${COM_MHS:-$COM_IN}
+# GPSRO
+export COM_GPSRO=${COM_GPSRO:-$COM_IN}
+# GOESFV
+export COM_GOESFV=${COM_GOESFV:-$COM_IN}
+# AIRS
+export COM_AIRS=${COM_AIRS:-$COM_IN}
+# RADWND
+export COM_RADWND=${COM_RADWND:-$COM_IN}
+# NEXRAD
+export COM_NEXRAD=${COM_NEXRAD:-$COM_IN}
+# ESAMUA
+export COM_ESAMUA=${COM_ESAMUA:-$COM_IN}
+# LGYCLD
+export COM_LGYCLD=${COM_LGYCLD:-$COM_IN}
+# LGHTNG
+export COM_LGHTNG=${COM_LGHTNG:-$COM_IN}
+# SATWND
+export COM_SATWND=${COM_SATWND:-$COM_IN}
+# ATMS
+export COM_ATMS=${COM_ATMS:-$COM_IN}
+# CRIS
+export COM_CRIS=${COM_CRIS:-$COM_IN}
+# SEVIRI
+export COM_SEVIRI=${COM_SEVIRI:-$COM_IN}
+# SSMIS
+export COM_SSMIS=${COM_SSMIS:-$COM_IN}
+
+###########################################
+# SPECIFY PATH TO FIREWX NEST CENTER POINTS
+###########################################
+## Used when nam_firewx_loc file is on Dell
+###export FIRE_WX_CENTER_POINTS=${FIRE_WX_CENTER_POINTS:-${COM_IN}/input/nam_firewx_loc}
+## Used when nam_firewx_loc file is on Phase 2
+export FIRE_WX_CENTER_POINTS=${FIRE_WX_CENTER_POINTS:-${COMROOTp2}/${NET}/prod/input/nam_firewx_loc}
+
+mkdir -m 775 -p $COMOUT
+mkdir -m 775 -p $COMOUT/input
+mkdir -m 775 -p $COMAWP
+mkdir -m 775 -p $COMAWP
+
+##############################################
+# Define GES directories
+##############################################
+export GESIN=${GESIN:-${GESROOT}/${envir}}
+export GESOUT=${GESOUT:-${GESROOT}/${envir}}
+mkdir -m 775 -p ${GESIN}
+
+export GESDIR=${GESDIR:-${GESIN}/${RUN}.${PDY}}
+export gespath=${gespath:-${GESIN}}
+mkdir -m 775 -p $GESDIR $gespath
+mkdir -p ${gespath}/${RUN}.hold
+

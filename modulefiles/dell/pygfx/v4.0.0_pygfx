@@ -1,0 +1,13 @@
+#%Module#################################################################
+proc ModulesHelp { } {
+  puts stderr "Set environment variables for NAMRR graphics on WCOSS"
+}
+
+module-whatis "Set environment variables for NAMRR graphics on WCOSS"
+
+set ver v4.0.0
+
+# Load and prepare Python evironment for NAMRR graphics
+module use -a /u/Rahul.Mahajan/modulefiles
+module load anaconda/latest 
+prepend-path	 PYTHONPATH /meso/save/Jacob.Carley/python/lib

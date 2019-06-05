@@ -1,0 +1,12 @@
+rm -f *.o *.mod emcsfc_accum_firedata ../../exec/emcsfc_accum_firedata
+rm -f *.o *.mod surface_chgres.i emcsfc_coldstart ../../exec/emcsfc_coldstart
+rm -f *.o *.mod emcsfc_fire2mdl ../../exec/emcsfc_fire2mdl
+rm -f *.o *.mod libgridgen_sfc.a ../../../incmod/emcsfc_gridgen_sfc/*.mod ../../../lib/libgridgen_sfc.a
+rm -f *.o *.mod emcsfc_gridgen_sfc ../../../exec/emcsfc_gridgen_sfc
+rm -f *.o *.mod emcsfc_ice2mdl ../../exec/emcsfc_ice2mdl
+rm -f *.o *.mod emcsfc_sfcupdate ../../exec/emcsfc_sfcupdate
+rm -f *.o *.mod emcsfc_snow2mdl ../../exec/emcsfc_snow2mdl
+rm -f *.o *.mod emcsfc_sst2mdl ../../exec/emcsfc_sst2mdl
+
+DONE BUILDING EMCSFC PROGRAMS
+€™: No such file or directory

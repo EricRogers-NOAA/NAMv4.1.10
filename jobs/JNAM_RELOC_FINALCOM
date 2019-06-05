@@ -1,0 +1,35 @@
+#!/bin/bash
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver:?}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc:?}_${tmmark:?}_nps_reloc_${envir:?}
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+  # Got these from the FV3GFS env.
+  export MPI_LABELIO=YES
+  export MP_STDOUTMODE="ORDERED"
+  export KMP_STACKSIZE=2048M
+  export KMP_AFFINITY=scatter
+
+. $GESDIR/${RUN}.t${cyc}z.envir.numbstm.${tmmark}.sh
+
+if [ $numbstm -gt 0 ] ; then
+########################################################
+# Execute the script.
+    $HOMEnam/scripts/exnam_reloc_finalcom.sh.ecf
+########################################################
+else
+    echo "No tropical storms, exit"
+    exit 0
+fi
+
+cat $pgmout
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+exit $jerr

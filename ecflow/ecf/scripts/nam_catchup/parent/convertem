@@ -1,0 +1,24 @@
+#
+set files = ( `cat list` )
+foreach file ($files)
+sed 's/envir-p3/envir-p3/g' $file > $file.new
+mv $file.new $file
+end
+
+set files = ( `cat list` )
+foreach file ($files)
+sed 's/gpfs/dell1/nco/ops/tmpnwprd/gpfs\/dell1\/nco\/ops\/gpfs/dell1/nco/ops/tmpnwprd/g' $file > $file.new
+mv $file.new $file
+end
+
+set files = ( `cat list` )
+foreach file ($files)
+sed 's///g' $file > $file.new
+mv $file.new $file
+end
+
+set files = ( `cat list` )
+foreach file ($files)
+sed 's///g' $file > $file.new
+mv $file.new $file
+end

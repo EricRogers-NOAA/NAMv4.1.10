@@ -1,0 +1,62 @@
+#!/bin/bash
+set -xa
+
+export HOMEnam=$NWROOT/nam.${nam_ver:?}
+export JJOBSnam=$HOMEnam/jobs
+export WKDIRNAME=nam_${cyc:?}_${tmmark:?}_nps_reloc_${envir:?}/${numstorm:?}
+
+# Setup directories and common environment variables
+
+. ${JJOBSnam}/JNAM_ENVARS
+
+export DATAnpsreloc=$DATAROOT/nam_${cyc}_${tmmark}_nps_reloc_${envir}
+
+  # Got these from the FV3GFS env.
+  export MPI_LABELIO=YES
+  export MP_STDOUTMODE="ORDERED"
+  export KMP_STACKSIZE=2048M
+  export KMP_AFFINITY=scatter
+
+# Step 1: check to see in the trak file is empty. If it is
+# the tracker could not find any storms in the first guess so abort relocation
+# Step 2: get the total number of storms. If is zero abort relocation. If greater
+# than 5, do no more than five
+
+offset=`echo $tmmark | cut -c 3-4`
+SDATE=`${NDATE:?} -${offset} ${PDY}${cyc}`
+
+if [ -s $COMOUT/nam.t${cyc}z.trak.nam.atcf_hfip.$SDATE.${tmmark} ] ; then
+  export numtracks=`cat $COMOUT/nam.t${cyc}z.trak.nam.atcf_hfip.$SDATE.${tmmark} | wc -l`
+else
+  export numtracks=0
+fi
+if [ -s $COMOUT/nam.t${cyc}z.numb_tmpvit.${tmmark} ] ; then
+  export totnumbstm=`cat $COMOUT/nam.t${cyc}z.numb_tmpvit.${tmmark}`
+else
+  export totnumbstm=0
+fi
+
+if [ $numstorm -le $totnumbstm ] ; then
+########################################################
+# numstorm passed in via Rocoto/LSF script
+   ${HOMEnam}/scripts/exnam_nmmb_nps_reloc.sh.ecf $numstorm
+########################################################
+   echo "relocation done" > $GESDIR/nam.t${cyc}z.relocdone.${numstorm}.${tmmark}
+else
+   echo "relocation not needed, no storm" > $GESDIR/nam.t${cyc}z.relocdone.${ic}.${tmmark}
+fi
+
+cat $pgmout
+date
+msg="JOB $job HAS COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+##############################
+# Remove the Temporary working directory
+##############################
+if [ $totnumbstm -eq 0 ] ; then
+    cd $DATAROOT
+    if [ ${KEEPDATA:-YES} = NO ] ; then rm -rf $DATA ; fi
+fi
+
+exit $jerr

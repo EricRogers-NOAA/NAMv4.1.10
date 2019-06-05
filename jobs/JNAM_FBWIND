@@ -1,0 +1,80 @@
+#!/bin/sh
+set -xa
+
+# these will be in ecflow script in ops
+###. /usrx/local/prod/lmod/lmod/init/profile
+###. /usrx/local/prod/modulefiles/.defaultmodules
+###module load prod_util/1.1.0
+###module load grib_util/1.0.6
+###module load util_shared/1.1.0
+###module load prod_envir/1.0.3
+
+export PS4='$SECONDS + '
+date
+export DATA=${DATAROOT}/${jobid:?}
+mkdir $DATA
+cd $DATA
+
+####################################
+# Determine Job Output Name on System
+####################################
+export MACHID=${MACHID:-wcoss}
+export pid=$$
+export pgmout="OUTPUT.${pid}"
+
+export NET=nam
+export RUN=nam
+export model=nam
+export cycle=t${cyc}z
+
+################################
+# Set up the HOME directory
+################################
+export HOMEnam=$NWROOT/nam.${nam_ver}
+export EXECnam=$HOMEnam/exec
+export FIXnam=$HOMEnam/fix
+export PARMnam=$HOMEnam/parm
+export USHnam=$HOMEnam/ush
+
+###################################
+# Set up the UTILITIES
+###################################
+export HOMEutil=$UTILSHAREDROOT
+export EXECutil=$UTILSHAREDROOT/exec
+export FIXutil=$FIXshared
+export PARMutil=$HOMEnam/util/parm
+export UTIL_EXECnam=${UTIL_EXECnam:-${HOMEnam}/util/exec/${MACHID}.exec}
+export UTIL_USHnam=${UTIL_USHnam:-${HOMEnam}/util/ush}
+export UTIL_PARMnam=${UTIL_PARMnam:-${HOMEnam}/util/parm}
+export USHutil=$USHshared
+
+##############################
+# Define Special Variables
+##############################
+
+# Run setpdy and initialize PDY variables
+sh setpdy.sh
+. ./PDY
+
+########################################
+# Set up the input/output directory
+########################################
+export COMIN=$COMROOT/nam/${envir}/${RUN}.${PDY}
+export COMOUT=$COMROOT/nam/${envir}/${RUN}.${PDY}
+export COMOUTwmo=$COMROOT/nam/${envir}/${RUN}.${PDY}/wmo
+
+mkdir -p $COMOUT $COMOUTwmo
+env
+
+########################################################
+# Execute the script.
+$HOMEnam/scripts/exnam_fbwind.sh.ecf
+########################################################
+
+##############################
+# Remove the Temporary working directory
+##############################
+cd $DATAROOT
+if [ ${KEEPDATA:-YES} = NO ] ; then rm -rf $DATA ; fi
+
+date

@@ -1,0 +1,7 @@
+export gempak_ver=v7.3.1
+export grib_util_ver=v1.1.0
+export util_shared_ver=v1.1.0
+export nam_ver=v4.1.10
+export radmon_shared_ver=v2.0.5 # used for satellite radiance monitoring job
+export ics_ver=18.0.1.163
+export netcdf_ver=4.5.0

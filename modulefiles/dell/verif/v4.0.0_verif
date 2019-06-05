@@ -1,0 +1,12 @@
+#%Module#################################################################
+proc ModulesHelp { } {
+  puts stderr "Set environment variables for NAMRR verification on WCOSS"
+}
+
+module-whatis "Set environment variables for NAMRR verification on WCOSS"
+
+set ver v4.0.0
+
+module use -a /u/Jacob.Carley/modulefiles
+module load MET/5.1
+

@@ -1,0 +1,9 @@
+#
+ls -1 j* > list
+set files = ( `cat list` )
+foreach file ($files)
+sed 's/$util_shared/$util_shared_ver/g' $file > $file.new
+mv $file.new $file
+end
+
+rm list

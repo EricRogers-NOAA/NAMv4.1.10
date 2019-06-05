@@ -1,0 +1,119 @@
+#!/bin/ksh
+
+################################################################################
+####  UNIX Script Documentation Block
+#                      .                                             .
+# Script name:         exnam_reloc_finalcom.sh.ecf
+# Script description:  This script relocates hurricane componnent from forecast
+#                      to NHC issued hurricane location.
+#
+# Author:        Qingfu Liu       Date: 2012-12-??
+#
+# Script history log:
+#
+#  December 2012, Qingfu Liu     - Created "hwrf_relocate_nmmb.sh".
+#  December 2013, Guang Ping Lou - Overhaul completely for retro-run NAM.
+#                                - Changed name to nmmb_relocate.sms
+#  January 2014, Guang Ping Lou  - if there is no NAM model low center, use GFS's
+#  January 2014, Guang Ping Lou  - modified so that it works for multiple hurricanes
+#  March   2014, Guang Ping Lou  - Added safeguard to exit in case of no need in doing this.
+#  June    2014, Guang Ping Lou  - Migrate to WCOSS from ZEUS
+#  June    2015, Eric Rogers     - Mods for NAM parallel run
+#  July    2016, Eric Rogers     - Final mods for NAMv4
+#
+####################################################################################
+set -x
+export PS4='$SECONDS: '
+########## GET THE INPUT VARIABLES #######################
+
+. $GESDIR/${RUN}.t${cyc}z.envir.sh
+
+if [ $tmmark == tm06 ]; then
+   export STARTDATE=`${NDATE} -06 $CYCLE`
+  elif [ $tmmark == tm00 ]; then
+   export STARTDATE=$CYCLE
+  else
+   echo 'this cycle does not do relocation '
+   exit 0
+ fi
+
+gesfhr=6
+
+jj=1
+ji=41
+jk=0
+
+if [ $tmmark = tm06 ]; then
+ namdata=nam.t${cyc}z.input_domain_01_nemsio.${tmmark}
+fi
+if [ $tmmark = tm00 ]; then
+ if [ $GUESStm00 = NAM ] ; then
+   namdata=nam.t${cyc}z.nmm_b_restart_nemsio.tm01
+ fi
+ if [ $GUESStm00 = GDAS ] ; then
+   namdata=nam.t${cyc}z.input_domain_01_nemsio.tm00
+ fi
+fi
+
+cp $GESDIR/${namdata} $GESDIR/${namdata}_pre_reloc
+export num_stm=$numbstm
+
+cp $GESDIR/$namdata .
+# new_nmm_d02 should be in working directory from previous job
+rm -f fort.*
+while [ $jj -le $num_stm ]; do
+if [ -s ${DATA}/data_merge_d01_${jj} ]; then
+
+if [ -s new_nmm_d02 ]; then
+  echo "new_nmm_d02 is already here"
+ else
+  cp ${DATA}/new_nmm_d02_${jj} new_nmm_d02
+fi
+ 
+numb=` ls -l ${DATA}/data_merge_d01_${jj} | awk '{ print $5}' `
+  if [ $numb -gt 1000 ]; then
+   ln -s -f $DATA/data_merge_d01_${jj}   fort.$ji
+   let ji=$ji+1
+   let jk=$jk+1
+  fi 
+fi
+let jj=$jj+1
+done
+
+  if [ $jk -ge 1 ]; then
+ln -s -f new_nmm_d02                           fort.40
+ln -s -f final_merge_d01                       fort.56
+
+export pgm=nam_merge_final.exe
+. prep_step
+
+echo $gesfhr $jk | ${EXECnam}/nam_merge_final.exe >> $pgmout 2>errfile
+export err=$?; err_chk
+
+echo "executable nam_final_merge.x return code err = ${err}"
+
+if [ $err -ne 0 ]; then
+    err_exit "executable nam_merge_final.exe return code err = ${err}"
+fi
+
+echo "${namdata}"          > itag1
+echo "update"                >> itag1
+echo "final_merge_d01"       >> itag1
+
+export pgm=nems_bin_io_degree.exe
+. prep_step
+
+${EXECnam}/nam_nems_bin_io_degree.exe < itag1 >> $pgmout 2>errfile
+export err=$?;err_chk
+
+fi   ##$jk 
+rm -f fort.*
+
+mv ${namdata} $GESDIR/.
+
+######################
+# since there is a relocation done, the dropwinsounde and SYNDATA 
+# are removed in prepbufr : Moved to parent GSI script for tm06 and tm00
+######################
+
+echo "ENDING nmmb_relo_finalcom.ecf " `date`
