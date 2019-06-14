@@ -108,6 +108,7 @@
 000 007 194 000 Richardson number                -                    RICH             0  -9999.00
 000 007 197 000 Updraft Helicity                 J K**-1              UPHL             0  -9999.00
 000 007 199 008 Max Updraft Helicity             J K**-1              MXUPHL           0  -9999.00
+000 007 200 008 Min Updraft Helicity             J K**-1              MNUPHL           0  -9999.00
 !
 ! trace gases
 !D# CT# ID# PD# NAME                             UNITS                GNAM         SCALE   MISSING
