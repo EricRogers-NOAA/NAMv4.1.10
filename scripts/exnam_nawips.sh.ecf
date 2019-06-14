@@ -154,15 +154,19 @@ while [ $fhcnt -le $fend ] ; do
          mv temp grib$fhr
      ;;
    nam_conusnest)
+         $WGRIB2 $GRIBIN | grep "REFD:263 K" | grep max | $WGRIB2 -i -grib tempref263k $GRIBIN
+         $WGRIB2 tempref263k -set_byte 4 11 198 -grib tempmaxref263k
          $WGRIB2 -s $GRIBIN | grep -f $utilfix_nam/nam_conusnest.parmlist|$WGRIB2 -i -grib temp $GRIBIN
-         mv temp grib$fhr
+         cat temp tempmaxref263k > grib$fhr
      ;;
    nam_conusnest_mag)
          $WGRIB2 -s $GRIBIN | grep -f $utilfix_nam/nam_conusnest.parmlist_mag|$WGRIB2 -i -grib temp $GRIBIN
          mv temp grib$fhr
      ;;
    nam_conusnest_cam)
-         cp $GRIBIN grib$fhr
+         $WGRIB2 $GRIBIN | grep "REFD:263 K" | grep max | $WGRIB2 -i -grib tempref263k $GRIBIN
+         $WGRIB2 tempref263k -set_byte 4 11 198 -grib tempmaxref263k
+         cat $GRIBIN tempmaxref263k > grib$fhr
      ;;
    nam_hawaiinest)
          $WGRIB2 -s $GRIBIN | grep -f $utilfix_nam/nam_hawaiinest.parmlist|$WGRIB2 -i -grib temp $GRIBIN
