@@ -52,6 +52,8 @@ export UTIL_USHnam=${UTIL_USHnam:-${HOMEnam}/util/ush}
 export UTIL_EXECnam=${UTIL_EXECnam:-${HOMEnam}/util/exec/${MACHID}.exec}
 export UTIL_FIXnam=${UTIL_FIXnam:-${HOMEnam}/util/fix}
 export FIXCRTM=${FIXCRTM:-${FIXnam}/nam_CRTM_Coefficients}
+# Change wgrib2 used to but the custom version with MCONV fix
+export WGRIB2=${UTIL_EXECnam}/wgrib2
 
 ####################################################################
 # Specify envir for GDAS/GFS
