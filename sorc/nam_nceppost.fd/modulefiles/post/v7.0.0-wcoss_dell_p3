@@ -36,9 +36,7 @@ module load crtm/2.2.6
 module load NetCDF/3.6.3
 module load g2tmpl/1.5.0
 
-####setenv WRFPATH /gpfs/dell2/emc/modeling/noscrub/George.Gayno/sref2dell/wrf_shared.v1.1.0
-setenv WRFPATH /gpfs/dell1/nco/ops/nwpara/lib/wrf_shared.v1.1.1
-##setenv WRFPATH /gpfs/hps/nco/ops/nwprod/wrf_shared.v1.1.0-intel
+setenv WRFPATH /gpfs/dell1/nco/ops/nwprod/lib/wrf_shared.v1.1.1
 setenv OPENMP "-qopenmp"
 setenv myFC mpiifort 
 setenv myFCFLAGS "-O3 -convert big_endian -traceback -g -fp-model source -qopenmp -fpp"
