@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -xa
 
 export HOMEnam=$NWROOT/nam.${nam_ver}

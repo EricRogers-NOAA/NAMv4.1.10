@@ -20,7 +20,7 @@ date
 ######################################################
 # Determine if we are running on WCOSS or Theia.
 ######################################################
-export MACHID=${MACHID:-wcoss}
+export MACHID=${MACHID:-dell}
 
 ####################################
 # obtain unique process id (pid) and make temp directory
@@ -73,6 +73,8 @@ fi
 ###########################################
 # Run setpdy and initialize PDY variables
 ###########################################
+COMDATEROOT=${COMDATEROOT:-${COMROOT:?}}
+
 if [ $tmmark != tm00 ] ; then
     if test "$cyc" = "12"
     then
@@ -86,7 +88,7 @@ if [ $tmmark != tm00 ] ; then
     then
 	$USHnam/setpdy_private.sh
 	. PDY.${jobid:?}
-	edate=`cat /com/date/t12z | cut -c7-14`
+        edate=`cat ${COMDATEROOT}/date/t12z | cut -c7-14`
 	if [ $edate -eq $PDY ]
 	then
 	    export PDY=`finddate.sh $PDY d+1`
@@ -108,7 +110,7 @@ export CDATE=$PDY$cyc
 #########################################
 # Specify MPI execution
 #########################################
-export MPIEXEC=${MPIEXEC:-mpirun.lsf}
+export MPIEXEC=${MPIEXEC:-mpirun}
 
 #########################################
 # Specify forecast lengths
@@ -153,7 +155,7 @@ export INPUT_FIRE_DIR=${INPUT_FIRE_DIR:-${DCOMROOT}/prod/burned_area}
 export NAMFIXgem=${NAMFIXgem:-${HOMEnam}/gempak/fix}
 export GETGES_COM=${GETGES_COM:-${COMROOThps}}
 export GETGES_NWG=${GETGES_NWG:-${GESROOThps}}
-export pcom=$PCOMROOT/nam  # needed by JNAM_POSTSND
+export pcom=$COMOUT/wmo  # needed by JNAM_POSTSND
 export COMINpcpanl=${COMINpcpanl:-$(compath.py pcpanl/prod)}
 # Input directory for PCP data, need to point to the current run environment
 export COM_HRLY_PCP=${COM_HRLY_PCP:-${COMNAM}}
@@ -161,7 +163,7 @@ mkdir -m 775 -p $COM_HRLY_PCP
 # Input directory for radar reflectivity data
 export COM_HRLY=${COM_HRLY:-${COMROOT}/hourly/prod}
 # Input directory for NHC tcvitals data (change to Dell location when it is known)
-export COMINnhc=${COMINnhc:-/gpfs/gp1/nhc/save/guidance/}
+export COMINnhc=${COMINnhc:-/gpfs/?p1/nhc/save/guidance/}
 # Specify the directory where forecasts run
 export FCSTDIR=${DATAROOT}/nam_${cyc}_${tmmark}_${envir}
 

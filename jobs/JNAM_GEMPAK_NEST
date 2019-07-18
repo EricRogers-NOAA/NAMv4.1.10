@@ -8,9 +8,8 @@ export WKDIRNAME=${jobid:?}
 # Setup directories and common environment variables
 
 . ${JJOBSnam}/JNAM_ENVARS
-
-module use -a /gpfs/dell1/nco/ops/nwprod/modulefiles/
-module load gempak/7.3.1
+export COMOUT=${COMROOT}/${NET}/${envir}/${RUN}.${PDY}/gempak
+export COMAWP=${COMROOT}/${NET}/${envir}/${RUN}.${PDY}/gempak
 
 #################################################
 # Set up model and cycle specific variables
