@@ -109,7 +109,7 @@ export envir=${envir:-test}
 export SENDCOM=${SENDCOM:-NO}
 export PARAFLAG=${PARAFLAG:-NO}
 export TRKDATA=${TRKDATA:-$DATA}
-export ATCFdir=${ATCFdir:-/com/nhc/${envir}/atcf}
+export ATCFdir=${ATCFdir:-/${COMROOTp3}/nhc/${envir}/atcf}
 
 if [ ${#PDY} -eq 0 -o ${#CYL} -eq 0 -o ${#cmodel} -eq 0 ]
 then
@@ -150,7 +150,7 @@ export gltrkdir=${gltrkdir:-${COMROOTp1}/hur/${envir}/global}
 
 export archsyndir=${archsyndir:-${COMROOTp1}/arch/prod/syndat}
 
-cp /com/date/t${CYL}z ncepdate
+cp /${COMDATEROOT}/date/t${CYL}z ncepdate
 export CENT=` cut -c7-8 ncepdate `
 
 
