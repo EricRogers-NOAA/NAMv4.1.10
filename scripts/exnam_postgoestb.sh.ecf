@@ -37,7 +37,7 @@ then
   fhr=00
 else
   cp $FCSTDIR/nampost_goestb.done* .
-  fhr=`ls -1 nampost_goestb.done*.${tmmark} | tail -1 | cut -c 22-23`
+  fhr=`ls -1 nampost_goestb.done*.${tmmark} | tail -1 | cut -c 20-21`
 fi
 
 if [ $tmmark = tm00 ]; then

@@ -37,7 +37,7 @@ hstart=`cat startdate.${tmmark} | cut -c9-10`
 
 cp $FIXnam/nam_profdat $DATA/nam_profdat
 
-typeset -Z2 fhr
+typeset -Z2 -x fhr
 echo $fhr
 
 OUTTYP=nemsio
