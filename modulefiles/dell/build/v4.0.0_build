@@ -37,5 +37,5 @@ module load gfsio/1.1.0
 module load crtm/2.2.6
 
 # Need WRFPATH for installing the post
-setenv WRFPATH /gpfs/dell1/nco/ops/nwpara/lib/wrf_shared.v1.1.1
+setenv WRFPATH /gpfs/dell1/nco/ops/nwprod/lib/wrf_shared.v1.1.1
 
