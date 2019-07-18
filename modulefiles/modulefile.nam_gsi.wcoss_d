@@ -26,10 +26,7 @@ setenv LDFLAGS_COM "-mkl"
 setenv OMPFLAG "-qopenmp"
 
 set WRF_SHARED_VER v1.1.0
-###set WRF_SHARED_ROOT /gpfs/hps/nco/ops/nwprod/wrf_shared
-####setenv WRF_SHARED_PATH ${WRF_SHARED_ROOT}.${WRF_SHARED_VER}-${COMPILER}
-###setenv WRF_SHARED_PATH /gpfs/dell2/emc/modeling/noscrub/George.Gayno/sref2dell/wrf_shared.v1.1.0
-setenv WRF_SHARED_PATH /gpfs/dell1/nco/ops/nwpara/lib/wrf_shared.v1.1.1
+setenv WRF_SHARED_PATH /gpfs/dell1/nco/ops/nwprod/lib/wrf_shared.v1.1.1
 
 # Known conflicts
 
