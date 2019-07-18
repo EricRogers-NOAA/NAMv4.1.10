@@ -15,9 +15,7 @@ set ver v4.0.0
 
 # Load MPI stuff
 module load ips/18.0.1.163
-module use -a /usrx/local/nceplibs/dev/modulefiles/compiler_nceplibs/ips/18.0.1
 module load impi/18.0.1
-module use -a /usrx/local/nceplibs/dev/modulefiles/mpi_nceplibs/ips/18.0.1/impi/18.0.1
 
 module load ip/3.0.1
 module load bacio/2.0.2
