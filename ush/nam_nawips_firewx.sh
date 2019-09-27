@@ -66,7 +66,7 @@ gpend
 
 export DBN_ALERT_TYPE=NAM_GEMPAK_NEST
 
-mv $GEMGRD $COMAWP/.
+cpfs $GEMGRD $COMAWP/.
 
 if [ $SENDDBN = "YES" ] ; then
   $DBNROOT/bin/dbn_alert MODEL ${DBN_ALERT_TYPE} $job ${COMAWP}/${GEMGRD}
