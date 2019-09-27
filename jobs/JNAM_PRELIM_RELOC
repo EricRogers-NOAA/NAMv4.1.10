@@ -24,14 +24,14 @@ if [ $tmmark = tm06 ] ; then
   SDATE=`$NDATE -6 ${PDY}${cyc}`
   echo $SDATE > stormdate
   yystorm=`cut -c 1-4 stormdate`
-  export synfile=$COMINnhc/storm-data/ncep/tcvitals
+  export synfile=$PARMnam/tcvitals_nam # empty file to shut off TC relocation
 fi
 if [ $tmmark = tm00 ] ; then
   DATEANL=${PDY}${cyc}
   SDATE=${PDY}${cyc} 
   echo $SDATE > stormdate
   yystorm=`cut -c 1-4 stormdate`
-  export synfile=$COMINnhc/storm-data/ncep/tcvitals
+  export synfile=$PARMnam/tcvitals_nam # empty file to shut off TC relocation
 fi
 
 echo $SDATE > stormdate

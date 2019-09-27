@@ -7,9 +7,11 @@ export WKDIRNAME=${jobid:?}
 
 # Setup directories and common environment variables
 
+
 . ${JJOBSnam}/JNAM_ENVARS
 export COMOUT=${COMROOT}/${NET}/${envir}/${RUN}.${PDY}/gempak
 export COMAWP=${COMROOT}/${NET}/${envir}/${RUN}.${PDY}/gempak
+mkdir -p $COMAWP
 
 #################################################
 # Set up model and cycle specific variables

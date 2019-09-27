@@ -47,6 +47,7 @@ export USHnam=$HOMEnam/ush
 ###################################
 export HOMEutil=$UTILSHAREDROOT
 export EXECutil=$UTILSHAREDROOT/exec
+export utilities=$UTILSHAREDROOT/ush
 export FIXutil=$FIXshared
 export PARMutil=$HOMEnam/util/parm
 export UTIL_EXECnam=${UTIL_EXECnam:-${HOMEnam}/util/exec/${MACHID}.exec}

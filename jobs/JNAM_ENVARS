@@ -88,7 +88,7 @@ if [ $tmmark != tm00 ] ; then
     then
 	$USHnam/setpdy_private.sh
 	. PDY.${jobid:?}
-        edate=`cat ${COMDATEROOT}/date/t12z | cut -c7-14`
+	edate=`cat ${COMDATEROOT}/date/t12z | cut -c7-14`
 	if [ $edate -eq $PDY ]
 	then
 	    export PDY=`finddate.sh $PDY d+1`
@@ -110,6 +110,7 @@ export CDATE=$PDY$cyc
 #########################################
 # Specify MPI execution
 #########################################
+#export MPIEXEC=${MPIEXEC:-mpirun.lsf}
 export MPIEXEC=${MPIEXEC:-mpirun}
 
 #########################################
@@ -173,27 +174,27 @@ export FCSTDIR=${DATAROOT}/nam_${cyc}_${tmmark}_${envir}
 
 ### To SPA : these should be removed 
 ### when NAM obsproc is running on the Dell
-export COM_PREPBUFR=${COMROOTp2}/nam/prod
-export COM_PREPBUFR_TM00=${COMROOTp2}/nam/prod
-export COM_IASI=${COMROOTp2}/nam/prod
-export COM_HIRS3=${COMROOTp2}/nam/prod
-export COM_HIRS4=${COMROOTp2}/nam/prod
-export COM_AMSUA=${COMROOTp2}/nam/prod
-export COM_AMSUB=${COMROOTp2}/nam/prod
-export COM_MHS=${COMROOTp2}/nam/prod
-export COM_GPSRO=${COMROOTp2}/nam/prod
-export COM_GOESFV=${COMROOTp2}/nam/prod
-export COM_AIRS=${COMROOTp2}/nam/prod
-export COM_RADWND=${COMROOTp2}/nam/prod
-export COM_NEXRAD=${COMROOTp2}/nam/prod
-export COM_ESAMUA=${COMROOTp2}/nam/prod
-export COM_LGYCLD=${COMROOTp2}/nam/prod
-export COM_LGHTNG=${COMROOTp2}/nam/prod
-export COM_SATWND=${COMROOTp2}/nam/prod
-export COM_ATMS=${COMROOTp2}/nam/prod
-export COM_CRIS=${COMROOTp2}/nam/prod
-export COM_SEVIRI=${COMROOTp2}/nam/prod
-export COM_SSMIS=${COMROOTp2}/nam/prod
+#export COM_PREPBUFR=${COMROOTp2}/nam/prod
+#export COM_PREPBUFR_TM00=${COMROOTp2}/nam/prod
+#export COM_IASI=${COMROOTp2}/nam/prod
+#export COM_HIRS3=${COMROOTp2}/nam/prod
+#export COM_HIRS4=${COMROOTp2}/nam/prod
+#export COM_AMSUA=${COMROOTp2}/nam/prod
+#export COM_AMSUB=${COMROOTp2}/nam/prod
+#export COM_MHS=${COMROOTp2}/nam/prod
+#export COM_GPSRO=${COMROOTp2}/nam/prod
+#export COM_GOESFV=${COMROOTp2}/nam/prod
+#export COM_AIRS=${COMROOTp2}/nam/prod
+#export COM_RADWND=${COMROOTp2}/nam/prod
+#export COM_NEXRAD=${COMROOTp2}/nam/prod
+#export COM_ESAMUA=${COMROOTp2}/nam/prod
+#export COM_LGYCLD=${COMROOTp2}/nam/prod
+#export COM_LGHTNG=${COMROOTp2}/nam/prod
+#export COM_SATWND=${COMROOTp2}/nam/prod
+#export COM_ATMS=${COMROOTp2}/nam/prod
+#export COM_CRIS=${COMROOTp2}/nam/prod
+#export COM_SEVIRI=${COMROOTp2}/nam/prod
+#export COM_SSMIS=${COMROOTp2}/nam/prod
 ### 
 
 # PREPBUFR
@@ -241,9 +242,9 @@ export COM_SSMIS=${COM_SSMIS:-$COM_IN}
 # SPECIFY PATH TO FIREWX NEST CENTER POINTS
 ###########################################
 ## Used when nam_firewx_loc file is on Dell
-###export FIRE_WX_CENTER_POINTS=${FIRE_WX_CENTER_POINTS:-${COM_IN}/input/nam_firewx_loc}
+export FIRE_WX_CENTER_POINTS=${FIRE_WX_CENTER_POINTS:-${COM_IN}/input/nam_firewx_loc}
 ## Used when nam_firewx_loc file is on Phase 2
-export FIRE_WX_CENTER_POINTS=${FIRE_WX_CENTER_POINTS:-${COMROOTp2}/${NET}/prod/input/nam_firewx_loc}
+#export FIRE_WX_CENTER_POINTS=${FIRE_WX_CENTER_POINTS:-${COMROOTp2}/${NET}/prod/input/nam_firewx_loc}
 
 mkdir -m 775 -p $COMOUT
 mkdir -m 775 -p $COMOUT/input

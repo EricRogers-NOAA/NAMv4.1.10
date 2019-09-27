@@ -10,8 +10,8 @@ export WKDIRNAME=${jobid:?}
 
 . ${JJOBSnam}/JNAM_ENVARS
 
-module use -a /gpfs/dell1/nco/ops/nwprod/modulefiles/
-module load gempak/7.3.1
+#module use -a /gpfs/dell1/nco/ops/nwprod/modulefiles/
+#module load gempak/7.3.1
 
 # Get the domain id number. Note $domain is provided via the
 # LSF job card or via Rocoto.

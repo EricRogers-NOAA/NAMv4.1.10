@@ -8,6 +8,8 @@ export WKDIRNAME=${jobid:?}
 # Setup directories and common environment variables
 
 . ${JJOBSnam}/JNAM_ENVARS
+export COMAWP=${COMROOT}/${NET}/${envir}/${RUN}.${PDY}/gempak
+mkdir -p $COMAWP
 
 # Get the domain id number. Note $domain is provided via the
 # LSF job card or via Rocoto.
