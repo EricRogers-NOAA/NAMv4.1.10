@@ -727,12 +727,12 @@ else
   synvit6ahead_file=nam.t${d6ahead_hh}z.syndata.tcvitals.tm00
 
 #these are for tests on Dell (ppint to ops on WCOSS)
-  synvitdir=${COMROOTp2}/nam/${envir}/nam.${PDY}
-  synvitfile=nam.t${CYL}z.syndata.tcvitals.tm00
-  synvit6ago_dir=${COMROOTp2}/nam/${envir}/nam.${d6ago_4ymd}
-  synvit6ago_file=nam.t${d6ago_hh}z.syndata.tcvitals.tm00
-  synvit6ahead_dir=${COMROOTp2}/nam/${envir}/nam.${d6ahead_4ymd}
-  synvit6ahead_file=nam.t${d6ahead_hh}z.syndata.tcvitals.tm00
+#  synvitdir=${COMROOTp2}/nam/${envir}/nam.${PDY}
+#  synvitfile=nam.t${CYL}z.syndata.tcvitals.tm00
+#  synvit6ago_dir=${COMROOTp2}/nam/${envir}/nam.${d6ago_4ymd}
+#  synvit6ago_file=nam.t${d6ago_hh}z.syndata.tcvitals.tm00
+#  synvit6ahead_dir=${COMROOTp2}/nam/${envir}/nam.${d6ahead_4ymd}
+#  synvit6ahead_file=nam.t${d6ahead_hh}z.syndata.tcvitals.tm00
 
 
 fi

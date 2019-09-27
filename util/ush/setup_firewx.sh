@@ -4,18 +4,19 @@
 echo "This script is run by the SDM to create the text file"
 echo "with the central lat/lon of the NAM fire weather nest."
 echo "This text file, called "nam_firewx_loc" is copied to" 
-echo "/com2/nam/prod and is read by the NAM jobs that process"
-echo "The fire weather nest."
+echo "/gpfs/dell1/nco/ops/com/nam/prod/input and is read"
+echo "by the NAM jobs that process the fire weather nest."
 ##########################################
 
 envir=prod
 
-. /nw${envir}2/versions/nam.ver
-EXECfirewx=/nw${envir}2/nam.${nam_ver}/util/exec/wcoss.exec
-COMOUT=/com2/nam/${envir}/input
+. /gpfs/dell1/nco/ops/nw${envir}/versions/nam.ver
+EXECfirewx=/gpfs/dell1/nco/ops/nw${envir}/nam.${nam_ver}/util/exec/wcoss.exec
+COMOUT=/gpfs/dell1/nco/ops/com/nam/${envir}/input
 
-mkdir -p /ptmpp1/`whoami`/firewx_setup
-cd /ptmpp1/`whoami`/firewx_setup
+TMP=/gpfs/dell1/ptmp
+mkdir -p ${TMP}/`whoami`/firewx_setup
+cd ${TMP}/`whoami`/firewx_setup
 rm nam_firewx_loc
 
 ###
