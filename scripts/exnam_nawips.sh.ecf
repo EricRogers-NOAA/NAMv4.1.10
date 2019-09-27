@@ -276,7 +276,7 @@ EOF
   fi
 
   if [ $SENDCOM = "YES" ] ; then
-     mv $GEMGRD $COMAWP/$GEMGRD
+     cpfs $GEMGRD $COMAWP/$GEMGRD
      if [ $SENDDBN = "YES" ] ; then
        if [ $RUN = "nam" -a $fhcnt3 -ne 0 ] ; then
          $DBNROOT/bin/dbn_alert MODEL ${DBN_ALERT_TYPE_2} $job \
